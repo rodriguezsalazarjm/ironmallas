@@ -1,19 +1,45 @@
-// Schema contract for Fase 2A. Regenerate with Supabase CLI after applying migration.
+// Contract for versioned SQL migrations. Regenerate from an authorized Supabase development project after applying.
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 export type Profile = { id: string; full_name: string; role: "SUPERADMIN" | "ADMIN"; active: boolean; created_at: string };
-export type Contact = { id: string; name: string; phone: string; email: string; address: string | null; commune: string | null; is_client: boolean; created_at: string };
+export type Contact = { id: string; name: string; phone: string | null; email: string; whatsapp: string | null; address: string | null; unit: string | null; commune: string | null; region: string | null; location_url: string | null; latitude: number | null; longitude: number | null; notes: string | null; source: string; first_contact_at: string; consent: boolean; consent_at: string | null; is_client: boolean; created_at: string; updated_at: string };
 export type LeadStatus = { id: string; key: string; name: string; position: number; active: boolean; is_final: boolean };
-export type Lead = { id: string; contact_id: string; service: string; message: string | null; status_id: string; source: string; tracking: Record<string, string>; consent: boolean; consent_at: string; created_at: string; last_activity_at: string; next_follow_up_at: string | null };
-export type Activity = { id: string; lead_id: string; type: string; note: string; responsible_id: string; created_at: string; next_follow_up_at: string | null };
+export type Lead = { id: string; contact_id: string; service: string; message: string | null; status_id: string; source: string; tracking: Record<string, string>; consent: boolean; consent_at: string; created_at: string; last_activity_at: string; next_follow_up_at: string | null; assigned_to: string | null };
+export type Activity = { id: string; lead_id: string; type: string; note: string; responsible_id: string | null; created_at: string; next_follow_up_at: string | null };
+export type Task = { id: string; contact_id: string; lead_id: string | null; title: string; due_at: string; status: "pending" | "completed" | "cancelled"; assigned_to: string | null; notes: string | null; created_by: string; created_at: string; completed_at: string | null; updated_at: string };
+export type Appointment = { id: string; contact_id: string; lead_id: string | null; kind: "visit" | "evaluation" | "installation"; service: string; starts_at: string; ends_at: string; address: string; commune: string; technician_id: string | null; status: "scheduled" | "rescheduled" | "completed" | "cancelled"; notes: string | null; result: string | null; cal_booking_uid: string | null; created_by: string | null; created_at: string; updated_at: string };
+export type Service = { id: string; name: string; description: string; unit: "m2" | "unit" | "hour" | "fixed"; active: boolean; created_at: string; updated_at: string };
+export type PricingRule = { id: string; service_id: string | null; name: string; unit: "m2" | "unit" | "hour" | "fixed"; material: string | null; unit_price: number; min_price: number; surcharge_bps: number; max_discount_bps: number; active: boolean; created_at: string; updated_at: string };
+export type Setting = { key: string; value: Json; updated_by: string | null; updated_at: string };
+export type Quote = { id: string; number: number; contact_id: string; lead_id: string | null; status: "draft" | "sent" | "accepted" | "rejected" | "expired"; current_version: number; subtotal: number; discount_bps: number; discount_amount: number; net: number; tax_bps: number; tax: number; total: number; valid_until: string; notes: string | null; payment_terms: string; warranty: string | null; created_by: string; created_at: string; updated_at: string; sent_at: string | null; accepted_at: string | null };
+export type QuoteItem = { id: string; quote_id: string; version: number; rule_id: string | null; description: string; unit: "m2" | "unit" | "hour" | "fixed"; width_mm: number | null; height_mm: number | null; quantity_milli: number; unit_price: number; min_price: number; surcharge_bps: number; line_total: number; material: string | null; location: string | null };
+export type QuoteVersion = { id: string; quote_id: string; version: number; snapshot: Json; created_by: string; created_at: string };
+export type Installation = { id: string; contact_id: string; quote_id: string; lead_id: string | null; appointment_id: string | null; service: string; address: string; commune: string; scheduled_at: string | null; completed_at: string | null; technician_id: string | null; status: "pending" | "scheduled" | "in_progress" | "completed" | "cancelled" | "rescheduled"; notes: string | null; technical_data: Json; approved_amount: number; payment_status: "unpaid" | "partial" | "paid"; created_by: string; created_at: string; updated_at: string };
+export type InstallationPhoto = { id: string; installation_id: string; path: string; stage: "before" | "during" | "after" | "detail" | "incident"; caption: string | null; created_by: string; created_at: string };
+export type Warranty = { id: string; installation_id: string; starts_on: string; duration_months: number; terms: string; status: "active" | "expired" | "claimed" | "void"; notes: string | null; created_by: string; created_at: string; updated_at: string };
+export type Payment = { id: string; installation_id: string; amount: number; method: string; reference: string | null; paid_at: string; created_by: string; created_at: string };
+export type Review = { id: string; contact_id: string | null; display_name: string; rating: number; original_text: string; presentation_text: string | null; photo_paths: string[]; publication_consent: boolean; image_consent: boolean; published: boolean; featured: boolean; created_by: string; created_at: string; updated_at: string };
+export type ContentEntry = { key: string; title: string | null; data: Json; published: boolean; created_by: string | null; updated_by: string | null; created_at: string; updated_at: string };
+export type Notification = { id: string; kind: string; recipient: string | null; subject: string; body: string; payload: Json; status: "pending" | "sent" | "failed"; attempts: number; last_error: string | null; created_at: string; sent_at: string | null };
+export type AuditLog = { id: number; actor_id: string | null; entity: string; entity_id: string; action: string; changes: Json; created_at: string };
+export type WebhookEvent = { id: string; provider: string; event_key: string; event_type: string; payload: Json; created_at: string; processed_at: string | null };
+export type PrivacyRequest = { id: string; contact_id: string; type: "correction" | "deletion" | "export"; status: "pending" | "reviewed" | "completed" | "rejected"; reason: string; resolution: string | null; created_by: string; created_at: string; updated_at: string };
 type Table<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] };
-export type Database = {
-  public: {
-    Tables: { profiles: Table<Profile>; contacts: Table<Contact>; leads: Table<Lead>; lead_statuses: Table<LeadStatus>; lead_activities: Table<Activity> };
-    Views: { [_ in never]: never };
-    Functions: {
-      submit_public_lead: { Args: { payload: Record<string, unknown>; rate_key: string }; Returns: string };
-      record_lead_activity: { Args: { target: string; new_status: string; activity_type: string; body: string; follow_up: string | null }; Returns: string };
-    };
-    Enums: { [_ in never]: never };
-    CompositeTypes: { [_ in never]: never };
+export type Database = { public: {
+  Tables: { profiles: Table<Profile>; contacts: Table<Contact>; leads: Table<Lead>; lead_statuses: Table<LeadStatus>; lead_activities: Table<Activity>; tasks: Table<Task>; appointments: Table<Appointment>; services: Table<Service>; pricing_rules: Table<PricingRule>; settings: Table<Setting>; quotes: Table<Quote>; quote_items: Table<QuoteItem>; quote_versions: Table<QuoteVersion>; installations: Table<Installation>; installation_photos: Table<InstallationPhoto>; warranties: Table<Warranty>; payments: Table<Payment>; reviews: Table<Review>; content_entries: Table<ContentEntry>; notifications: Table<Notification>; audit_logs: Table<AuditLog>; webhook_events: Table<WebhookEvent>; privacy_requests: Table<PrivacyRequest> };
+  Views: { [_ in never]: never };
+  Functions: {
+    submit_public_lead: { Args: { payload: Record<string, unknown>; rate_key: string }; Returns: string };
+    record_lead_activity: { Args: { target: string; new_status: string; activity_type: string; body: string; follow_up: string | null }; Returns: string };
+    save_quote: { Args: { p_contact_id: string; p_lead_id: string | null; p_quote_id: string | null; p_items: Json; p_discount_bps: number; p_notes: string | null; p_expected_version: number | null }; Returns: string };
+    set_quote_status: { Args: { p_quote_id: string; p_status: string; p_expected_version: number }; Returns: undefined };
+    create_installation: { Args: { p_quote_id: string; p_scheduled_at: string | null; p_technician_id: string | null; p_address: string; p_commune: string; p_technical_data: Json; p_notes: string | null }; Returns: string };
+    set_installation_status: { Args: { p_id: string; p_status: string; p_notes: string | null }; Returns: undefined };
+    record_payment: { Args: { p_installation_id: string; p_amount: number; p_method: string; p_reference: string | null; p_paid_at: string }; Returns: string };
+    dashboard_metrics: { Args: { p_from: string; p_to: string; p_now: string }; Returns: Json };
+    bootstrap_admin_profile: { Args: { p_user_id: string; p_full_name: string }; Returns: undefined };
+    log_contact_export: { Args: { p_contact_id: string }; Returns: undefined };
+    manage_profile: { Args: { p_user_id: string; p_full_name: string; p_role: string; p_active: boolean }; Returns: undefined };
+    sync_cal_booking: { Args: { p_event_key: string; p_event_type: string; p_payload: Json }; Returns: string };
   };
-};
+  Enums: { [_ in never]: never }; CompositeTypes: { [_ in never]: never };
+} };
