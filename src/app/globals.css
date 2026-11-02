@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* ── Iron Mallas design tokens ─────────────────────────────── */
+@theme {
+  --font-display: var(--font-oswald), "Oswald", "Arial Narrow", sans-serif;
+  --font-sans: var(--font-roboto), "Roboto", system-ui, sans-serif;
+
+  /* Navy — brand #06365A at 700 */
+  --color-navy-50: #eef4f9;
+  --color-navy-100: #d9e6f0;
+  --color-navy-200: #b3cce0;
+  --color-navy-300: #7fa6c6;
+  --color-navy-400: #4a7da6;
+  --color-navy-500: #1f5a85;
+  --color-navy-600: #0d4670;
+  --color-navy-700: #06365a;
+  --color-navy-800: #052b48;
+  --color-navy-900: #042137;
+  --color-navy-950: #031726;
+
+  /* Orange — brand #FC6B04 at 500 */
+  --color-orange-50: #fff4ec;
+  --color-orange-100: #ffe4cf;
+  --color-orange-200: #ffc79e;
+  --color-orange-300: #ffa261;
+  --color-orange-400: #fd842e;
+  --color-orange-500: #fc6b04;
+  --color-orange-600: #db5a00;
+  --color-orange-700: #b04800;
+  --color-orange-800: #8c3a05;
+
+  /* Neutrals */
+  --color-surface: #f3f6f9;
+  --color-line: #dce4eb;
+  --color-ink: #1e2b36;
+  --color-ink-soft: #55636f;
+
+  --shadow-card: 0 1px 2px rgb(6 54 90 / 0.06), 0 12px 32px -8px rgb(6 54 90 / 0.14);
+  --shadow-lift: 0 2px 4px rgb(6 54 90 / 0.08), 0 24px 48px -12px rgb(6 54 90 / 0.24);
+  --shadow-glow: 0 10px 28px -6px rgb(252 107 4 / 0.55);
+
+  --animate-fade-up: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 1s ease-out both;
+  --animate-grow-x: grow-x 0.8s ease-out both;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes grow-x {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+}
+
+/* ── Base ──────────────────────────────────────────────────── */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Fixed header offset for in-page anchors (top bar + header). */
+    scroll-padding-top: 6.5rem;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: #ffffff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  p { text-wrap: pretty; }
+
+  :focus-visible {
+    outline: 3px solid var(--color-orange-500);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  ::selection {
+    background: var(--color-orange-500);
+    color: var(--color-navy-950);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Utilities ─────────────────────────────────────────────── */
+@utility container-site {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  @media (width >= 40rem) { padding-inline: 1.5rem; }
+  @media (width >= 64rem) { padding-inline: 2rem; }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+/* Animated <details> (progressive enhancement). */
+.faq-item {
+  interpolate-size: allow-keywords;
+}
+.faq-item::details-content {
+  block-size: 0;
+  overflow: hidden;
+  transition: block-size 0.35s ease, content-visibility 0.35s allow-discrete;
+}
+.faq-item[open]::details-content {
+  block-size: auto;
+}
+.faq-item > summary::-webkit-details-marker { display: none; }
+
+/* Native <dialog>: lock page scroll while a modal is open. */
+html:has(dialog[open]:modal) {
+  overflow: hidden;
+}
+dialog::backdrop {
+  background: rgb(3 23 38 / 0.72);
+  backdrop-filter: blur(6px);
+}

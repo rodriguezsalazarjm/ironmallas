@@ -1,0 +1,100 @@
+"use server";
+
+import { headers } from "next/headers";
+
+import { siteContent } from "@/content/site";
+import { whatsappUrl } from "@/lib/links";
+import { isRateLimited } from "./rate-limit";
+import { saveLead } from "./repository";
+import { leadSchema, type LeadFieldErrors, type LeadFormState, type LeadInput } from "./schema";
+
+/** Submissions faster than this are almost certainly automated. */
+const MIN_FILL_MS = 3000;
+
+const str = (data: FormData, key: string) => {
+  const value = data.get(key);
+  return typeof value === "string" ? value : undefined;
+};
+
+function whatsappFallback(lead: LeadInput): string {
+  const lines = [
+    "Hola Iron Mallas, quiero solicitar una cotización.",
+    `Nombre: ${lead.name}`,
+    `Servicio: ${lead.service}`,
+    lead.commune && `Comuna: ${lead.commune}`,
+    lead.message && `Mensaje: ${lead.message}`,
+  ].filter(Boolean);
+  return whatsappUrl(siteContent.contact.phoneE164, lines.join("\n"));
+}
+
+export async function submitLead(_prev: LeadFormState, formData: FormData): Promise<LeadFormState> {
+  // Honeypot: hidden from people, filled by naive bots.
+  if (str(formData, "website")) {
+    return { status: "error", message: "No pudimos procesar la solicitud." };
+  }
+
+  const startedAt = Number(str(formData, "startedAt"));
+  if (!Number.isFinite(startedAt) || Date.now() - startedAt < MIN_FILL_MS) {
+    return { status: "error", message: "Por favor revisa los datos e intenta nuevamente." };
+  }
+
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  if (isRateLimited(ip)) {
+    return {
+      status: "error",
+      message: "Recibimos varias solicitudes seguidas. Espera unos minutos o escríbenos por WhatsApp.",
+    };
+  }
+
+  const parsed = leadSchema.safeParse({
+    name: str(formData, "name"),
+    phone: str(formData, "phone"),
+    email: str(formData, "email"),
+    service: str(formData, "service"),
+    commune: str(formData, "commune"),
+    message: str(formData, "message"),
+    consent: str(formData, "consent"),
+    tracking: {
+      utmSource: str(formData, "utm_source"),
+      utmMedium: str(formData, "utm_medium"),
+      utmCampaign: str(formData, "utm_campaign"),
+      utmContent: str(formData, "utm_content"),
+      utmTerm: str(formData, "utm_term"),
+      landingPage: str(formData, "landing_page"),
+      referrer: str(formData, "referrer"),
+    },
+  });
+
+  if (!parsed.success) {
+    const fieldErrors: LeadFieldErrors = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0] as keyof LeadFieldErrors;
+      if (key && !fieldErrors[key]) fieldErrors[key] = issue.message;
+    }
+    return { status: "invalid", fieldErrors, message: "Revisa los campos marcados." };
+  }
+
+  const result = await saveLead({ ...parsed.data, source: "web_form", submittedAt: new Date().toISOString() });
+
+  if (result.ok) {
+    return {
+      status: "success",
+      message: "Recibimos tu solicitud. Te contactaremos en menos de 24 horas hábiles.",
+    };
+  }
+
+  if (result.reason === "not_configured") {
+    return {
+      status: "unavailable",
+      message:
+        "El envío en línea aún no está habilitado. Tu mensaje no se ha enviado: puedes enviarlo ahora por WhatsApp con los datos ya completados.",
+      whatsappHref: whatsappFallback(parsed.data),
+    };
+  }
+
+  return {
+    status: "error",
+    message: "No pudimos guardar tu solicitud. Intenta nuevamente o escríbenos por WhatsApp.",
+  };
+}
