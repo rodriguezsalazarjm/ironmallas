@@ -1,12 +1,30 @@
 import Link from "next/link";
-import { getInbox, date } from "@/features/admin/data";
-export default async function LeadsPage({ searchParams }: PageProps<"/admin/leads">) {
-  const params = await searchParams;
-  const raw = Number(params.page ?? 1);
-  const page = Number.isSafeInteger(raw) && raw > 0 && raw < 100000 ? raw : 1;
-  const { leads, statuses, contacts, total } = await getInbox(page);
-  return <><h1 className="text-3xl font-bold text-navy-700">Oportunidades</h1><p className="my-3 text-ink-soft">{total} solicitudes registradas · Página {page}</p>
-    <div className="grid gap-3">{!leads.length && <p className="rounded-2xl border border-line bg-white p-6">No hay oportunidades en esta página.</p>}{leads.map(l => <Link href={`/admin/leads/${l.id}`} key={l.id} className="grid gap-2 rounded-2xl border border-line bg-white p-5 hover:border-navy-500 sm:grid-cols-2"><div><h2 className="font-semibold text-navy-700">{contacts.find(c => c.id === l.contact_id)?.name ?? "Contacto no disponible"}</h2><p className="text-sm">{l.service}</p></div><div className="text-sm sm:text-right"><p>{statuses.find(s => s.id === l.status_id)?.name}</p><p className="text-ink-soft">{date(l.created_at)}</p><p>Seguimiento: {date(l.next_follow_up_at)}</p></div></Link>)}</div>
-    <nav aria-label="Páginas de oportunidades" className="mt-6 flex gap-6">{page > 1 && <Link className="underline" href={`/admin/leads?page=${page-1}`}>Anterior</Link>}{page*30 < total && <Link className="underline" href={`/admin/leads?page=${page+1}`}>Siguiente</Link>}</nav>
-  </>;
+import {requireAdmin} from "@/lib/auth";
+import {date} from "@/features/admin/data";
+import {safeSearch} from "@/features/crm/schema";
+import {dashboardPeriod,type DashboardPeriod} from "@/features/dashboard/period";
+import {PageHeading,Panel,fieldClass,primaryClass,secondaryClass} from "@/features/crm/ui";
+export default async function LeadsPage({searchParams}:PageProps<"/admin/leads">){
+  const {db}=await requireAdmin();const params=await searchParams;
+  const q=safeSearch(params.q),commune=safeSearch(params.commune),status=typeof params.status==="string"?params.status:"";
+  let period:DashboardPeriod|undefined;let dateError=false;
+  if(params.from || params.to){try{period=dashboardPeriod(params.from,params.to);}catch{dateError=true;}}
+  const page=Math.max(1,Math.min(10000,Math.floor(Number(params.page)||1)));
+  const [statuses,profiles]=await Promise.all([db.from("lead_statuses").select("*").order("position"),db.from("profiles").select("id,full_name")]);
+  if(statuses.error || profiles.error) throw new Error("No se pudo cargar el pipeline.");
+  let contactIds:string[]|null=null;
+  if(q || commune){let contactQuery=db.from("contacts").select("id");if(q)contactQuery=contactQuery.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);if(commune)contactQuery=contactQuery.ilike("commune",`%${commune}%`);const found=await contactQuery.limit(1000);if(found.error)throw new Error("No se pudo realizar la búsqueda.");contactIds=found.data.map(c=>c.id);}
+  let leadQuery=db.from("leads").select("*",{count:"exact"}).order("created_at",{ascending:false});
+  if(contactIds)leadQuery=leadQuery.in("contact_id",contactIds.length?contactIds:["00000000-0000-0000-0000-000000000000"]);
+  if(status && statuses.data.some(s=>s.id===status))leadQuery=leadQuery.eq("status_id",status);
+  if(period)leadQuery=leadQuery.gte("created_at",period.from).lt("created_at",period.to);
+  const leads=await leadQuery.range((page-1)*30,page*30-1);
+  if(leads.error)throw new Error("No se pudieron cargar las oportunidades.");
+  const ids=[...new Set(leads.data.map(l=>l.contact_id))];
+  const contacts=ids.length?await db.from("contacts").select("id,name,email,phone,commune").in("id",ids):{data:[],error:null};
+  if(contacts.error)throw new Error("No se pudieron cargar los contactos.");
+  const link=(target:number)=>`/admin/leads?${new URLSearchParams({q,commune,status,from:period?.fromDate ?? "",to:period?.toDate ?? "",page:String(target)})}`;
+  return <><PageHeading title="Oportunidades" description="Solicitudes y relaciones comerciales en curso. Cambiar de estado conserva el historial."><Link className={primaryClass} href="/admin/leads/nuevo">Nueva oportunidad</Link></PageHeading>
+  <form className="mb-5 grid gap-3 rounded-2xl border border-line bg-white p-4 sm:grid-cols-2 xl:grid-cols-3"><label className="sr-only" htmlFor="lead-q">Buscar contacto</label><input id="lead-q" className={fieldClass} name="q" defaultValue={q} placeholder="Nombre, teléfono o correo" maxLength={100}/><label className="sr-only" htmlFor="lead-commune">Comuna</label><input id="lead-commune" className={fieldClass} name="commune" defaultValue={commune} placeholder="Comuna" maxLength={60}/><label className="sr-only" htmlFor="lead-status">Estado</label><select id="lead-status" className={fieldClass} name="status" defaultValue={status}><option value="">Todos los estados</option>{statuses.data.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select><label className="grid gap-1 text-xs">Recibida desde (Santiago)<input type="date" name="from" className={fieldClass} min="2000-01-01" max="2100-12-31" defaultValue={period?.fromDate ?? ""}/></label><label className="grid gap-1 text-xs">Recibida hasta (Santiago)<input type="date" name="to" className={fieldClass} min="2000-01-01" max="2100-12-31" defaultValue={period?.toDate ?? ""}/></label><button className={secondaryClass}>Filtrar</button></form>{dateError && <p role="alert" className="mb-4 text-sm text-red-700">El período no es válido. No se aplicó el filtro de fechas; selecciona desde/hasta entre 2000 y 2100.</p>}
+  <p className="mb-4 text-sm text-ink-soft">{leads.count ?? 0} oportunidades · Página {page}</p><Panel title="Bandeja">{!leads.data.length && <p className="py-5 text-sm text-ink-soft">No hay oportunidades para estos filtros.</p>}<div className="grid gap-3">{leads.data.map(l=>{const c=contacts.data?.find(c=>c.id===l.contact_id);return <Link key={l.id} href={`/admin/leads/${l.id}`} className="grid gap-3 rounded-xl border border-line p-4 hover:border-navy-500 sm:grid-cols-2"><div><h2 className="font-semibold text-navy-700">{c?.name || "Contacto"}</h2><p className="mt-1 text-sm">{l.service}</p><p className="mt-1 text-xs text-ink-soft">{c?.commune || "Comuna pendiente"} · {profiles.data.find(p=>p.id===l.assigned_to)?.full_name || "Sin responsable"}</p></div><div className="text-sm sm:text-right"><span className="inline-block rounded-full bg-navy-50 px-3 py-1 text-xs font-semibold text-navy-700">{statuses.data.find(s=>s.id===l.status_id)?.name}</span><p className="mt-2 text-xs text-ink-soft">Recibida: {date(l.created_at)}</p><p className="mt-1 text-xs">Seguimiento: {date(l.next_follow_up_at)}</p></div></Link>})}</div></Panel><nav aria-label="Páginas de oportunidades" className="mt-5 flex gap-3">{page>1 && <Link className={secondaryClass} href={link(page-1)}>Anterior</Link>}{page*30<(leads.count ?? 0)&&<Link className={secondaryClass} href={link(page+1)}>Siguiente</Link>}</nav></>;
 }

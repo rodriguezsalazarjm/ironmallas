@@ -1,0 +1,7 @@
+import type { ReactNode } from "react";
+export const fieldClass="w-full min-w-0 rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-navy-500 focus:ring-2 focus:ring-navy-100";
+export const primaryClass="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-navy-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy-600 disabled:opacity-50";
+export const secondaryClass="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy-700 hover:border-navy-500";
+export function Field({label,children,className=""}:{label:string;children:ReactNode;className?:string}) {return <label className={`grid min-w-0 gap-1.5 text-sm font-medium ${className}`}>{label}{children}</label>;}
+export function Panel({title,children}:{title:string;children:ReactNode}) {return <section className="min-w-0 rounded-2xl border border-line bg-white p-5 sm:p-6"><h2 className="mb-5 text-xl font-semibold text-navy-700">{title}</h2>{children}</section>;}
+export function PageHeading({title,description,children}:{title:string;description:string;children?:ReactNode}) {return <header className="mb-7 flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-3xl font-bold text-navy-700">{title}</h1><p className="mt-2 max-w-2xl text-sm text-ink-soft">{description}</p></div>{children}</header>;}

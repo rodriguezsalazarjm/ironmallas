@@ -7,6 +7,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseConfig } from "@/lib/supabase/config";
 import { isRateLimited } from "@/features/leads/rate-limit";
 import { headers } from "next/headers";
+import {fromSantiagoInput} from "@/features/crm/time";
 
 export async function login(_: string, form: FormData): Promise<string> {
   if (!supabaseConfig()) return "El acceso aún no está configurado.";
@@ -35,11 +36,13 @@ export async function recordActivity(_: string, form: FormData): Promise<string>
   const parsed = z.object({
     id: z.uuid(), status: z.uuid(), type: z.enum(["note", "call", "whatsapp", "email"]),
     note: z.string().trim().min(1).max(2000),
-    followUp: z.union([z.literal(""), z.iso.datetime({ offset: true })]),
+    followUp: z.string().max(30),
   }).safeParse(Object.fromEntries(form));
   if (!parsed.success) return "Revisa el estado, la nota y la fecha del seguimiento.";
   const d = parsed.data;
-  const { error } = await db.rpc("record_lead_activity", { target: d.id, new_status: d.status, activity_type: d.type, body: d.note, follow_up: d.followUp || null });
+  let followUp: string|null=null;
+  try {if(d.followUp) followUp=fromSantiagoInput(d.followUp);} catch {return "La fecha u hora no es válida en Santiago.";}
+  const { error } = await db.rpc("record_lead_activity", { target: d.id, new_status: d.status, activity_type: d.type, body: d.note, follow_up: followUp });
   if (error) return "No se guardaron los cambios. Intenta nuevamente.";
   revalidatePath("/admin", "layout");
   return "Actividad y seguimiento guardados.";

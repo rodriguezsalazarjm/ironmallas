@@ -2,6 +2,7 @@
 import { useActionState } from "react";
 import { login, recordActivity, saveStatus } from "@/features/admin/actions";
 import type { LeadStatus, Lead } from "@/lib/supabase/database.types";
+import {santiagoInput} from "@/features/crm/time";
 
 export const input = "w-full rounded-xl border border-line bg-white p-3 text-ink focus:outline-2 focus:outline-navy-700";
 const button = "rounded-xl bg-navy-700 px-5 py-3 font-semibold text-white disabled:opacity-50";
@@ -16,16 +17,12 @@ export function LoginForm({ disabled }: { disabled: boolean }) {
 }
 export function ActivityForm({ lead, statuses }: { lead: Lead; statuses: LeadStatus[] }) {
   const [message, action, pending] = useActionState(recordActivity, "");
-  return <form action={form => {
-    const local = String(form.get("followUp") || "");
-    form.set("followUp", local ? new Date(`${local}Z`).toISOString() : "");
-    action(form);
-  }} className="grid gap-4">
+  return <form action={action} className="grid gap-4">
     <input type="hidden" name="id" value={lead.id} />
     <label className="grid gap-2">Estado<select name="status" defaultValue={lead.status_id} className={input}>{statuses.filter(s => s.active || s.id === lead.status_id).map(s => <option key={s.id} value={s.id} disabled={!s.active}>{s.name}</option>)}</select></label>
     <label className="grid gap-2">Tipo de actividad<select name="type" className={input}><option value="note">Nota</option><option value="call">Llamada</option><option value="whatsapp">WhatsApp</option><option value="email">Correo</option></select></label>
     <label className="grid gap-2">Nota<textarea name="note" className={input} required maxLength={2000} rows={4} /></label>
-    <label className="grid gap-2">Próximo seguimiento (UTC)<input name="followUp" type="datetime-local" className={input} defaultValue={lead.next_follow_up_at?.slice(0,16) ?? ""} /></label>
+    <label className="grid gap-2">Próximo seguimiento (hora de Santiago)<input name="followUp" type="datetime-local" className={input} defaultValue={santiagoInput(lead.next_follow_up_at)} /></label>
     <Feedback message={message} /><button className={button} disabled={pending}>{pending ? "Guardando…" : "Guardar actividad"}</button>
   </form>;
 }
