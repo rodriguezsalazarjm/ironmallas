@@ -4,12 +4,12 @@ Nueva versión de [ironmallas.cl](https://ironmallas.cl): web comercial en Next.
 siguientes, plataforma privada de gestión (CRM, agenda, cotizaciones, instalaciones, reseñas y
 contenidos).
 
-> **Fase actual: 1 — Arranque y web pública.** El WordPress de producción sigue intacto; este
+> **Fase actual: 2A — Base administrativa implementada; activación de Supabase pendiente.** El WordPress de producción sigue intacto; este
 > proyecto no modifica WordPress, DNS ni dominio.
 
 ## Requisitos
 
-- Node.js 20.9 o superior (probado con Node 25 / npm 11)
+- Node.js 22 o superior (probado con Node 25 / npm 11)
 - npm
 
 ## Puesta en marcha
@@ -35,8 +35,8 @@ Abre <http://localhost:3000>.
 
 ## Variables de entorno
 
-Ver [`.env.example`](.env.example). En Fase 1 solo se usan `NEXT_PUBLIC_SITE_URL` y `SITE_INDEXABLE`.
-Las variables de Supabase, Resend y Cal.com están comentadas y **no se usan todavía**.
+Ver [`.env.example`](.env.example). Las variables de Supabase se describen en `docs/FASE-2A.md`.
+Sin Supabase configurado se mantiene WhatsApp. Resend y los webhooks de Cal.com siguen pendientes.
 
 ## Dónde está cada cosa
 
@@ -63,9 +63,19 @@ Las variables de Supabase, Resend y Cal.com están comentadas y **no se usan tod
 | WhatsApp / Instagram | ✅ Enlaces directos |
 | Formulario de cotización | ⚠️ Valida en servidor, pero **no guarda** hasta configurar Supabase (Fase 2). Lo informa al usuario y ofrece WhatsApp. |
 | Imágenes y videos | ⚠️ Se sirven desde `ironmallas.cl/wp-content/uploads` (optimizados por `next/image`). Migrar a Supabase Storage. |
-| Panel `/admin` | ⏳ Placeholder sin datos ni login (Fase 2) |
+| Panel `/admin` | Implementado con login, roles y RLS; requiere configurar Supabase y provisionar perfiles. |
 
 ## Material de migración
 
 El export `migration/ironmallas.WordPress.2026-11-02.xml` está excluido de Git (contiene datos de
 usuarios de WordPress). Conserva una copia local para consultas.
+
+## Fase 2A — panel y Supabase preparados
+
+La implementación actual añade login, autorización/RLS, bandeja y ficha de oportunidades,
+actividades, seguimientos, resumen y configuración de estados. La configuración remota está pendiente.
+Ver [docs/FASE-2A.md](docs/FASE-2A.md) para migración, permisos, variables, activación y pruebas.
+Las secciones anteriores describen el punto de partida de Fase 1; este apartado refleja el estado actual.
+
+Comprobación adicional: `npm test` ejecuta validación Zod y políticas SQL en PostgreSQL embebido,
+sin conectar servicios remotos. No sustituye las pruebas con Supabase real después de configurarlo.

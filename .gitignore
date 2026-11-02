@@ -43,3 +43,5 @@ next-env.d.ts
 
 # local migration material (personal data / large export)
 /migration/*.xml
+/supabase/.temp/
+/supabase/.branches/

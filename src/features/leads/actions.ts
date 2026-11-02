@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { createHmac } from "node:crypto";
 
 import { siteContent } from "@/content/site";
 import { whatsappUrl } from "@/lib/links";
@@ -75,7 +76,8 @@ export async function submitLead(_prev: LeadFormState, formData: FormData): Prom
     return { status: "invalid", fieldErrors, message: "Revisa los campos marcados." };
   }
 
-  const result = await saveLead({ ...parsed.data, source: "web_form", submittedAt: new Date().toISOString() });
+  const rateKey = createHmac("sha256", process.env.LEAD_RATE_LIMIT_SECRET || "unconfigured").update(ip).digest("hex");
+  const result = await saveLead({ ...parsed.data, source: "web_form", submittedAt: new Date().toISOString() }, rateKey);
 
   if (result.ok) {
     return {

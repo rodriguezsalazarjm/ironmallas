@@ -127,3 +127,13 @@ En seguimiento → Aprobado → Instalación programada → Instalado → Cerrad
 - Sin secretos en el repositorio (`.env*` ignorado, solo `.env.example`).
 - Pendiente: Content-Security-Policy (requiere listar dominios de Cal.com) y CAPTCHA invisible
   (Cloudflare Turnstile) si aparece spam real.
+
+## Implementación Fase 2A
+
+La especificación previa es una hoja de ruta. El alcance implementado y la configuración vigente
+están en [FASE-2A.md](FASE-2A.md). En particular, contacts conserva los datos de contacto,
+leads las oportunidades, lead_statuses el flujo comercial y lead_activities el historial.
+Los perfiles solo los provisiona un operador confiable. El grupo admin/(private) aplica autorización
+junto con los helpers de datos, acciones y RLS; admin/login queda fuera de ese grupo.
+El área admin se resuelve por solicitud detrás de Suspense/connection(), sin caché compartida de sesión.
+No se añadieron dependencias de componentes UI: se reutilizan Tailwind y los tokens de marca.
