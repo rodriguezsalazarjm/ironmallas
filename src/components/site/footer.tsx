@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import { Mail, MapPin, Phone } from "lucide-react";
 
@@ -70,9 +71,9 @@ export function Footer({ brand, contact, nav, services, footer }: FooterProps) {
           <FooterColumn title="Servicios">
             {serviceLinks.map((label) => (
               <li key={label}>
-                <a href="#servicios" className="text-sm text-white/70 transition hover:text-orange-400">
+                <Link href="/#servicios" className="inline-flex min-h-11 items-center text-sm text-white/80 transition hover:text-orange-400">
                   {label}
-                </a>
+                </Link>
               </li>
             ))}
           </FooterColumn>
@@ -80,9 +81,9 @@ export function Footer({ brand, contact, nav, services, footer }: FooterProps) {
           <FooterColumn title="Navegación">
             {nav.map((item) => (
               <li key={item.href}>
-                <a href={item.href} className="text-sm text-white/70 transition hover:text-orange-400">
+                <Link href={item.href.startsWith("#") ? `/${item.href}` : item.href} className="inline-flex min-h-11 items-center text-sm text-white/80 transition hover:text-orange-400">
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
           </FooterColumn>

@@ -343,7 +343,7 @@ export const siteContent: SiteContent = {
       "Remodelación general",
       "Otro / No sé aún",
     ],
-    privacyNote: "Tus datos se usan solo para responder tu solicitud y no se comparten con terceros.",
+    privacyNote: "Usamos tus datos solo para responder tu solicitud y preparar tu cotización. Detalles en la política de privacidad.",
   },
 
   footer: {

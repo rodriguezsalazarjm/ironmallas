@@ -1,22 +1,41 @@
 import Link from "next/link";
-import { requireAdmin } from "@/lib/auth";
 import { date } from "@/features/admin/data";
-export default async function Dashboard() {
-  const { db } = await requireAdmin();
-  const statuses = await db.from("lead_statuses").select("*");
-  if (statuses.error) throw new Error("No se pudieron cargar los estados.");
-  const open = statuses.data.filter(s => !s.is_final).map(s => s.id);
-  const initial = statuses.data.find(s => s.key === "new");
-  const [fresh, pending, follow, activities] = await Promise.all([
-    db.from("leads").select("id", { count: "exact", head: true }).eq("status_id", initial?.id ?? "00000000-0000-0000-0000-000000000000"),
-    db.from("leads").select("id", { count: "exact", head: true }).in("status_id", open),
-    db.from("leads").select("id,next_follow_up_at", { count: "exact" }).in("status_id", open).not("next_follow_up_at", "is", null).order("next_follow_up_at").limit(8),
-    db.from("lead_activities").select("*").order("created_at", { ascending: false }).limit(8),
-  ]);
-  if (fresh.error || pending.error || follow.error || activities.error) throw new Error("No se pudo cargar el resumen.");
-  return <><h1 className="text-3xl font-bold text-navy-700">Resumen comercial</h1><p className="mt-2 text-ink-soft">Oportunidades, actividad y próximos contactos.</p>
-    <div className="my-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[["Leads nuevos",fresh.count],["Leads pendientes",pending.count],["Seguimientos programados",follow.count],["Cotizaciones","Próxima fase"]].map(([label,value]) => <div key={label} className="rounded-2xl border border-line bg-white p-5"><p className="text-sm text-ink-soft">{label}</p><p className="mt-3 text-2xl font-bold text-navy-700">{value}</p></div>)}</div>
-    <div className="grid gap-6 xl:grid-cols-2"><section className="rounded-2xl border border-line bg-white p-6"><h2 className="mb-4 text-xl font-semibold">Próximos seguimientos</h2>{!follow.data.length && <p>Sin seguimientos programados.</p>}{follow.data.map(l => <Link className="block border-t border-line py-3 underline" href={`/admin/leads/${l.id}`} key={l.id}>{date(l.next_follow_up_at)}</Link>)}</section>
-    <section className="rounded-2xl border border-line bg-white p-6"><h2 className="mb-4 text-xl font-semibold">Actividad reciente</h2>{!activities.data.length && <p>Aún no hay actividad comercial registrada.</p>}{activities.data.map(a => <article className="border-t border-line py-3" key={a.id}><Link href={`/admin/leads/${a.lead_id}`} className="font-semibold underline">{a.type} · {date(a.created_at)}</Link><p className="mt-1 whitespace-pre-wrap break-words text-sm">{a.note}</p></article>)}</section></div>
+import { dashboardPeriod } from "@/features/dashboard/period";
+import { dashboardData } from "@/features/dashboard/data";
+import { clp } from "@/features/quotes/calculation";
+import { PageHeading,Panel,primaryClass,secondaryClass,fieldClass } from "@/features/crm/ui";
+import { sourceLabel } from "@/features/leads/sources";
+const entities:Record<string,{label:string;path?:string;detail?:boolean}>={contacts:{label:"Contacto",path:"/admin/clientes"},leads:{label:"Oportunidad",path:"/admin/leads"},appointments:{label:"Cita",path:"/admin/agenda"},quotes:{label:"Cotización",path:"/admin/cotizaciones"},installations:{label:"Instalación",path:"/admin/instalaciones"},tasks:{label:"Tarea"},payments:{label:"Pago"},reviews:{label:"Reseña",path:"/admin/resenas",detail:false},pricing_rules:{label:"Tarifa"},settings:{label:"Configuración"},content_entries:{label:"Contenido (histórico)"},profiles:{label:"Usuario"}};
+const actions:Record<string,string>={INSERT:"creado",UPDATE:"actualizado",DELETE:"eliminado",insert:"creado",update:"actualizado",delete:"eliminado"};
+export default async function Dashboard({searchParams}:PageProps<"/admin">){
+  const params=await searchParams;
+  let period,periodError="";
+  try{period=dashboardPeriod(params.from,params.to);}catch{period=dashboardPeriod(undefined,undefined);periodError="El período no es válido. Se muestra el mes actual de Santiago.";}
+  const data=await dashboardData(period);const m=data.metrics;
+  const filter=new URLSearchParams({from:period.fromDate,to:period.toDate}).toString();
+  const freshLink=`/admin/leads?${filter}${data.newStatusId?`&status=${data.newStatusId}`:""}`;
+  const cards=[
+    {label:"Leads nuevos",value:String(m.fresh_leads),href:freshLink,help:"Estado Nuevo · recibidos en el período"},
+    {label:"Pendientes de contacto",value:String(m.pending_contact_leads),href:freshLink,help:"Oportunidades que aún requieren primer contacto"},
+    {label:"Cotizaciones enviadas",value:String(m.sent_quotes),href:`/admin/cotizaciones?${filter}&metric=sent`,help:"Enviadas durante el período, incluso si luego se aprobaron"},
+    {label:"Cotizaciones por aprobar",value:String(m.awaiting_quotes),href:`/admin/cotizaciones?${filter}&metric=awaiting`,help:"Enviadas y vigentes, sin aceptación"},
+    {label:"Visitas técnicas próximas",value:String(m.upcoming_visits),href:`/admin/agenda?${filter}&kind=visits&upcoming=1&view=list`,help:"Visitas y evaluaciones próximas del período"},
+    {label:"Instalaciones programadas",value:String(m.scheduled_installations),href:`/admin/instalaciones?${filter}&status=scheduled`,help:"Trabajos programados o reprogramados próximos"},
+    {label:"Instalaciones realizadas",value:String(m.completed_installations),href:`/admin/instalaciones?${filter}&status=completed`,help:"Finalizadas durante el período"},
+    {label:"Presupuestos aprobados",value:String(m.accepted_quotes),href:`/admin/cotizaciones?${filter}&estado=accepted`,help:"Aceptados durante el período"},
+    {label:"Importe aprobado",value:clp(m.approved_amount),href:`/admin/cotizaciones?${filter}&estado=accepted`,help:"Total de presupuestos aceptados del período"},
+    {label:"Ingresos registrados",value:clp(m.income),href:`/admin/pagos?${filter}`,help:"Pagos registrados por fecha de pago; no equivalen a facturación"},
+  ];
+  const contact=(id:string)=>data.contacts.find(c=>c.id===id)?.name??"Contacto";
+  return <><PageHeading title="Inicio" description="Resumen operativo de Iron Mallas. Datos calculados desde los registros guardados."><div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto"><Link className="inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-4 text-sm font-semibold text-white" href="/admin/leads/whatsapp">+ Lead WhatsApp</Link><Link className={`${primaryClass} min-h-12`} href="/admin/cotizaciones/nueva">Generar cotización</Link><Link className={`${secondaryClass} min-h-12`} href="/admin/agenda/nueva">Agendar visita</Link><Link className={`${secondaryClass} min-h-12`} href="/admin/leads">Oportunidades</Link></div></PageHeading>
+    <section className="mb-7"><Panel title="Oportunidades recientes">{!data.recentLeads.length&&<p className="py-4 text-sm text-ink-soft">Aún no hay oportunidades. Llegarán desde el formulario web, Meta o el registro rápido de WhatsApp.</p>}<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{data.recentLeads.map(l=><Link key={l.id} href={`/admin/leads/${l.id}`} className="rounded-xl border border-line p-4 hover:border-navy-500"><p className="font-semibold text-navy-700">{contact(l.contact_id)}</p><p className="mt-1 text-sm">{l.service}</p><p className="mt-1 text-xs text-ink-soft">{sourceLabel(l.source)} · {data.statuses.find(s=>s.id===l.status_id)?.name} · {date(l.created_at)}</p>{l.next_action&&<p className="mt-1 text-xs font-semibold text-orange-700">→ {l.next_action}</p>}</Link>)}</div></Panel></section>
+    <form className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-white p-4"><label className="grid gap-1 text-sm">Desde<input name="from" type="date" className={fieldClass} defaultValue={period.fromDate} min="2000-01-01" max="2100-12-31" required/></label><label className="grid gap-1 text-sm">Hasta<input name="to" type="date" className={fieldClass} defaultValue={period.toDate} min="2000-01-01" max="2100-12-31" required/></label><button className={secondaryClass}>Aplicar período</button><Link href="/admin" className="self-center text-sm underline">Mes actual</Link><p className="text-xs text-ink-soft">Fechas inclusivas en Santiago de Chile.</p></form>
+    {periodError&&<p role="alert" className="mb-5 rounded-xl bg-orange-50 p-4 text-sm">{periodError}</p>}
+    <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(card=><Link key={card.label} href={card.href} className="rounded-2xl border border-line bg-white p-5 transition hover:border-navy-500 focus-visible:outline-2 focus-visible:outline-navy-700"><h2 className="text-sm text-ink-soft">{card.label}</h2><p className="my-3 break-words text-2xl font-bold text-navy-700">{card.value}</p><p className="text-xs text-ink-soft">{card.help}</p></Link>)}</div>
+    <section className="mb-7 rounded-2xl border border-orange-200 bg-orange-50 p-5"><h2 className="text-xl font-semibold text-navy-700">Seguimientos vencidos: {m.overdue_tasks+m.overdue_leads}</h2><p className="mt-2 text-sm">{m.overdue_tasks} tareas pendientes y {m.overdue_leads} oportunidades abiertas con fecha de contacto vencida. Este bloque considera todo el historial pendiente, sin limitarlo al período seleccionado.</p></section>
+    <div className="grid gap-6 xl:grid-cols-2"><Panel title="Próximas visitas del período">{!data.visits.length&&<p className="py-4 text-sm text-ink-soft">No hay citas próximas en este período. Puedes coordinar una visita desde Agenda.</p>}{data.visits.map(v=><Link className="block border-t border-line py-3" key={v.id} href={`/admin/agenda/${v.id}`}><p className="font-semibold text-navy-700">{contact(v.contact_id)}</p><p className="mt-1 text-sm">{v.service} · {date(v.starts_at)}</p></Link>)}<Link className="mt-4 inline-block text-sm underline" href="/admin/agenda/nueva">Programar visita</Link></Panel>
+    <Panel title="Contactos que requieren seguimiento">{!data.tasks.length&&!data.overdueLeads.length&&<p className="py-4 text-sm text-ink-soft">No hay seguimientos vencidos. Programa próximos contactos desde la ficha del cliente o de la oportunidad.</p>}{data.tasks.map(t=><Link className="block border-t border-line py-3" href={`/admin/clientes/${t.contact_id}`} key={t.id}><p className="font-semibold text-navy-700">{t.title}</p><p className="mt-1 text-sm">{contact(t.contact_id)} · vencida {date(t.due_at)}</p></Link>)}{data.overdueLeads.map(l=><Link className="block border-t border-line py-3" key={l.id} href={`/admin/leads/${l.id}`}><p className="font-semibold text-navy-700">Contactar a {contact(l.contact_id)}</p><p className="mt-1 text-sm">Oportunidad · vencido {date(l.next_follow_up_at)}</p></Link>)}</Panel>
+    <Panel title="Actividad comercial reciente">{!data.activities.length&&<p className="py-4 text-sm text-ink-soft">Sin actividad comercial en este período.</p>}{data.activities.map(a=><article className="border-t border-line py-3" key={a.id}><Link className="font-semibold text-navy-700 underline" href={`/admin/leads/${a.lead_id}`}>{a.type} · {date(a.created_at)}</Link><p className="mt-1 whitespace-pre-wrap break-words text-sm">{a.note}</p></article>)}</Panel>
+    <Panel title="Acciones administrativas recientes">{!data.audit.length&&<p className="py-4 text-sm text-ink-soft">Sin acciones registradas en este período.</p>}{data.audit.map(a=>{const entity=entities[a.entity];const label=`${entity?.label??"Registro"} ${actions[a.action]??"modificado"}`;return <article className="border-t border-line py-3" key={a.id}>{entity?.path?<Link className="font-semibold text-navy-700 underline" href={entity.detail===false?entity.path:`${entity.path}/${a.entity_id}`}>{label}</Link>:<p className="font-semibold">{label}</p>}<p className="mt-1 text-xs text-ink-soft">{date(a.created_at)}</p></article>})}</Panel></div>
   </>;
 }

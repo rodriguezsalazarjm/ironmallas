@@ -64,7 +64,8 @@ test("full migrations: CRM, scheduling, immutable quote math/history, work/payme
     assert.equal((await db.query("delete from storage.objects where name=$1 returning id",[orphan])).rows.length,1);
     await db.query("insert into public.reviews(display_name,rating,original_text,presentation_text,publication_consent,published,created_by) values('Fixture review',5,'Real fixture statement','Fixture public statement',true,true,$1)",[ADMIN]);
     await assert.rejects(db.query("insert into public.reviews(display_name,rating,original_text,published,created_by) values('No consent',5,'Fixture',true,$1)",[ADMIN]));
-    await db.query("insert into public.content_entries(key,data,published,created_by) values('fixture','{}',false,$1)",[ADMIN]);
+    // El CMS se retiró: el contenido web vive en el código y la tabla queda como histórico de solo lectura.
+    await assert.rejects(db.query("insert into public.content_entries(key,data,published,created_by) values('fixture','{}',false,$1)",[ADMIN]));
     await assert.rejects(db.query("insert into public.content_entries(key,data,published,created_by) values('privacy_draft','{}',false,$1)",[ADMIN]));
     const privacyRequest=(await db.query<{id:string}>("insert into public.privacy_requests(contact_id,type,reason,created_by) values($1,'export','Fixture request',$2) returning id",[contact,ADMIN])).rows[0].id;
     assert.equal((await db.query("update public.privacy_requests set status='completed' where id=$1 returning id",[privacyRequest])).rows.length,0);

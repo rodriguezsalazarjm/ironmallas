@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef } from "react";
 import { Menu, X } from "lucide-react";
 
@@ -35,13 +36,13 @@ export function MobileMenu({ nav, whatsappHref, instagramUrl }: MobileMenuProps)
         onClick={(e) => {
           if (e.target === e.currentTarget) close();
         }}
-        className="m-auto w-[min(22rem,calc(100%-2rem))] rounded-3xl border border-white/15 bg-navy-800/95 p-0 text-white shadow-2xl backdrop-blur-xl open:animate-fade-up"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[min(22rem,calc(100%-2rem))] overflow-y-auto rounded-3xl border border-white/15 bg-navy-800/95 p-0 text-white shadow-2xl backdrop-blur-xl open:animate-fade-up"
       >
         <div className="relative p-4 pt-14">
           <button
             type="button"
             onClick={close}
-            className="absolute right-3 top-3 grid size-10 place-items-center rounded-xl bg-white/10 transition hover:bg-white/20"
+            className="absolute right-3 top-3 grid size-11 place-items-center rounded-xl bg-white/10 transition hover:bg-white/20"
             aria-label="Cerrar menú"
           >
             <X className="size-5" aria-hidden="true" />
@@ -51,13 +52,13 @@ export function MobileMenu({ nav, whatsappHref, instagramUrl }: MobileMenuProps)
             <ul className="flex flex-col gap-2">
               {nav.map((item) => (
                 <li key={item.href}>
-                  <a
-                    href={item.href}
+                  <Link
+                    href={item.href.startsWith("#") ? `/${item.href}` : item.href}
                     onClick={close}
                     className="block rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3.5 text-center font-display text-lg font-semibold uppercase tracking-wide transition hover:bg-white/15"
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -11,7 +11,7 @@ import { WhatsAppIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 
 const TRACKING_KEY = "im_first_touch";
-const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
+const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "fbclid", "gclid"] as const;
 
 type Tracking = Partial<Record<(typeof UTM_KEYS)[number] | "landing_page" | "referrer", string>>;
 
@@ -37,7 +37,7 @@ function readTracking(): Tracking {
 }
 
 const inputClasses =
-  "w-full rounded-xl border border-line bg-surface px-4 py-3 text-[0.95rem] text-ink outline-none transition placeholder:text-ink-soft/70 focus:border-navy-500 focus:bg-white focus:ring-4 focus:ring-navy-100 aria-invalid:border-red-500 aria-invalid:ring-red-100";
+  "w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink transition placeholder:text-ink-soft/70 focus:border-navy-500 focus:bg-white focus:ring-4 focus:ring-navy-100 aria-invalid:border-red-500 aria-invalid:ring-red-100";
 
 function Field({
   id,
@@ -72,12 +72,15 @@ function Field({
 export function QuoteForm({ content }: { content: QuoteFormContent }) {
   const [state, formAction, pending] = useActionState<LeadFormState, FormData>(submitLead, { status: "idle" });
   const startedAt = useRef<number>(0);
+  const submissionId = useRef<string>("");
   const statusRef = useRef<HTMLDivElement>(null);
   const uid = useId();
   const id = (name: string) => `${uid}-${name}`;
 
   useEffect(() => {
     startedAt.current = Date.now();
+    // Un id por formulario: reintentos o doble clic no crean oportunidades duplicadas.
+    submissionId.current = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "";
     readTracking();
   }, []);
 
@@ -95,6 +98,12 @@ export function QuoteForm({ content }: { content: QuoteFormContent }) {
         <CircleCheck className="mx-auto size-16 text-green-600" aria-hidden="true" />
         <h3 className="mt-4 text-2xl font-semibold uppercase tracking-wide text-navy-700">¡Solicitud recibida!</h3>
         <p className="mt-2 text-ink-soft">{state.message}</p>
+        {state.whatsappHref && (
+          <a href={state.whatsappHref} target="_blank" rel="noopener noreferrer" className={buttonClasses("whatsapp", "md", "mt-5")}>
+            <WhatsAppIcon size={18} />
+            Continuar también por WhatsApp
+          </a>
+        )}
       </div>
     );
   }
@@ -102,12 +111,14 @@ export function QuoteForm({ content }: { content: QuoteFormContent }) {
   return (
     <form
       action={formAction}
+      aria-busy={pending}
       noValidate
       onSubmit={(e) => {
         // With JS: submit manually so field values survive validation errors.
         e.preventDefault();
         const data = new FormData(e.currentTarget);
         data.set("startedAt", String(startedAt.current));
+        if (submissionId.current) data.set("submission_id", submissionId.current);
         for (const [key, value] of Object.entries(readTracking())) {
           if (value) data.set(key, value);
         }
@@ -152,7 +163,7 @@ export function QuoteForm({ content }: { content: QuoteFormContent }) {
       <div className="sm:col-span-2">
         <label className="flex cursor-pointer items-start gap-3 text-sm text-ink-soft">
           <input type="checkbox" name="consent" required className="mt-0.5 size-5 shrink-0 accent-navy-700" {...a11y("consent")} />
-          <span>Acepto que Iron Mallas use estos datos para responder mi solicitud de cotización.</span>
+          <span>Acepto que Iron Mallas use estos datos para responder mi solicitud de cotización, según su <a href="/politica-de-privacidad" target="_blank" className="underline">política de privacidad</a>.</span>
         </label>
         {errors.consent && (
           <p id={`${id("consent")}-error`} className="mt-1.5 text-sm text-red-700">
@@ -167,6 +178,12 @@ export function QuoteForm({ content }: { content: QuoteFormContent }) {
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             {state.message}
           </p>
+        )}
+        {state.status === "error" && state.whatsappHref && (
+          <a href={state.whatsappHref} target="_blank" rel="noopener noreferrer" className={buttonClasses("whatsapp", "md", "mt-3")}>
+            <WhatsAppIcon size={18} />
+            Enviar por WhatsApp
+          </a>
         )}
         {state.status === "unavailable" && (
           <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">

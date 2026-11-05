@@ -5,7 +5,7 @@ export const contactSchema = z.object({
   updated_at:z.string().max(60).optional(),
   name: z.string().trim().min(2).max(80),
   phone: z.string().trim().regex(/^[+\d\s()-]+$/).transform(v => v.replace(/\D/g,"")).refine(v => /^\d{8,15}$/.test(v)),
-  email: z.email().trim().max(120).transform(v => v.toLowerCase()),
+  email: z.union([z.literal(""), z.email().trim().max(120)]).transform(v => v ? v.toLowerCase() : null),
   whatsapp: optional(24).refine(v => !v || /^[+\d ()-]{8,24}$/.test(v)),
   address: optional(240), unit: optional(80), commune: optional(60), region: optional(100),
   location_url: optional(500).refine(v => !v || /^https:\/\//.test(v)),

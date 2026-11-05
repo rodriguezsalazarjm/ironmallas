@@ -27,7 +27,7 @@ export function Hero({ hero, contact }: { hero: HeroContent; contact: ContactInf
         className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-navy-950/80 to-transparent"
       />
 
-      <div className="container-site flex min-h-[calc(100svh-6.5rem)] flex-col items-center justify-center py-16 text-center text-white sm:py-20">
+      <div className="container-site flex min-h-[min(48rem,calc(100svh-6.5rem))] flex-col items-center justify-center pb-24 pt-14 text-center text-white sm:pb-24 sm:pt-20">
         <h1
           id="hero-title"
           className="max-w-4xl animate-fade-up text-[2.35rem] font-bold uppercase leading-[1.05] tracking-wide [text-shadow:0_4px_18px_rgb(0_0_0/0.55)] sm:text-6xl lg:text-7xl"
@@ -51,22 +51,22 @@ export function Hero({ hero, contact }: { hero: HeroContent; contact: ContactInf
           </ButtonLink>
         </div>
 
-        <ul className="mt-10 flex max-w-4xl animate-fade-in flex-wrap justify-center gap-2.5 [animation-delay:1s]">
+        <ul className="mt-8 grid w-full max-w-4xl animate-fade-in grid-cols-2 gap-2.5 sm:mt-10 sm:flex sm:flex-wrap sm:justify-center [animation-delay:1s]">
           {hero.trustPills.map((pill) => {
             const Icon = pillIcons[pill.icon];
             return (
               <li
                 key={pill.label}
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur-md"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-left text-xs sm:rounded-full sm:px-4 sm:text-sm font-medium backdrop-blur-md"
               >
-                <Icon className="size-4 text-orange-400" aria-hidden="true" />
+                <Icon className="size-4 shrink-0 text-orange-400" aria-hidden="true" />
                 {pill.label}
               </li>
             );
           })}
           {hero.counter && (
-            <li className="inline-flex items-center gap-3 rounded-full border border-orange-500/40 bg-orange-500/15 px-4 py-2 backdrop-blur-md">
-              <TrendingUp className="size-4 text-orange-400" aria-hidden="true" />
+            <li className="col-span-2 inline-flex items-center justify-center gap-3 rounded-full border border-orange-500/40 bg-orange-500/15 px-4 py-2 backdrop-blur-md">
+              <TrendingUp className="size-4 shrink-0 text-orange-400" aria-hidden="true" />
               <span className="font-display text-lg font-bold leading-none text-orange-400">
                 <AnimatedCounter value={hero.counter.value} />
                 {hero.counter.suffix}

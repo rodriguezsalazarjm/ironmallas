@@ -3,11 +3,11 @@
 import { headers } from "next/headers";
 import { createHmac } from "node:crypto";
 
-import { siteContent } from "@/content/site";
+import { getSiteContent } from "@/lib/content";
 import { whatsappUrl } from "@/lib/links";
 import { isRateLimited } from "./rate-limit";
 import { saveLead } from "./repository";
-import { leadSchema, type LeadFieldErrors, type LeadFormState, type LeadInput } from "./schema";
+import { createLeadSchema, type LeadFieldErrors, type LeadFormState, type LeadInput } from "./schema";
 
 /** Submissions faster than this are almost certainly automated. */
 const MIN_FILL_MS = 3000;
@@ -17,7 +17,7 @@ const str = (data: FormData, key: string) => {
   return typeof value === "string" ? value : undefined;
 };
 
-function whatsappFallback(lead: LeadInput): string {
+function whatsappFallback(lead: LeadInput,phone:string): string {
   const lines = [
     "Hola Iron Mallas, quiero solicitar una cotización.",
     `Nombre: ${lead.name}`,
@@ -25,7 +25,7 @@ function whatsappFallback(lead: LeadInput): string {
     lead.commune && `Comuna: ${lead.commune}`,
     lead.message && `Mensaje: ${lead.message}`,
   ].filter(Boolean);
-  return whatsappUrl(siteContent.contact.phoneE164, lines.join("\n"));
+  return whatsappUrl(phone, lines.join("\n"));
 }
 
 export async function submitLead(_prev: LeadFormState, formData: FormData): Promise<LeadFormState> {
@@ -48,7 +48,8 @@ export async function submitLead(_prev: LeadFormState, formData: FormData): Prom
     };
   }
 
-  const parsed = leadSchema.safeParse({
+  const content=await getSiteContent();
+  const parsed = createLeadSchema(content.quoteForm.serviceOptions as [string,...string[]]).safeParse({
     name: str(formData, "name"),
     phone: str(formData, "phone"),
     email: str(formData, "email"),
@@ -64,7 +65,10 @@ export async function submitLead(_prev: LeadFormState, formData: FormData): Prom
       utmTerm: str(formData, "utm_term"),
       landingPage: str(formData, "landing_page"),
       referrer: str(formData, "referrer"),
+      fbclid: str(formData, "fbclid"),
+      gclid: str(formData, "gclid"),
     },
+    submission_id: str(formData, "submission_id") || undefined,
   });
 
   if (!parsed.success) {
@@ -83,6 +87,7 @@ export async function submitLead(_prev: LeadFormState, formData: FormData): Prom
     return {
       status: "success",
       message: "Recibimos tu solicitud. Te contactaremos en menos de 24 horas hábiles.",
+      whatsappHref: whatsappFallback(parsed.data,content.contact.phoneE164),
     };
   }
 
@@ -91,12 +96,13 @@ export async function submitLead(_prev: LeadFormState, formData: FormData): Prom
       status: "unavailable",
       message:
         "El envío en línea aún no está habilitado. Tu mensaje no se ha enviado: puedes enviarlo ahora por WhatsApp con los datos ya completados.",
-      whatsappHref: whatsappFallback(parsed.data),
+      whatsappHref: whatsappFallback(parsed.data,content.contact.phoneE164),
     };
   }
 
   return {
     status: "error",
-    message: "No pudimos guardar tu solicitud. Intenta nuevamente o escríbenos por WhatsApp.",
+    message: "No pudimos guardar tu solicitud. Tus datos no se perdieron: envíalos por WhatsApp con el botón o intenta nuevamente.",
+    whatsappHref: whatsappFallback(parsed.data,content.contact.phoneE164),
   };
 }

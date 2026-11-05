@@ -22,6 +22,9 @@ export async function saveAppointment(_:string,form:FormData) {
   }
   let status=d.status;
   if(id) {
+    const linked=await db.from("installations").select("id").eq("appointment_id",id).limit(1);
+    if(linked.error)return "No se pudo comprobar el vínculo con instalaciones.";
+    if(linked.data.length)return "Esta cita está vinculada a un trabajo. Programa o cancela desde su ficha de instalación.";
     const current=await db.from("appointments").select("starts_at,ends_at,status").eq("id",id).single();
     if(current.error) return "La cita ya no está disponible.";
     const changed=Date.parse(current.data.starts_at)!==Date.parse(times.starts_at) || Date.parse(current.data.ends_at)!==Date.parse(times.ends_at);

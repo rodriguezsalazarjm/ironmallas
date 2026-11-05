@@ -13,7 +13,7 @@ export async function saveContact(_: string, form: FormData) {
   const { id,updated_at,...input } = parsed.data;
   const [phoneMatches,emailMatches] = await Promise.all([
     db.from("contacts").select("id,email,phone").eq("phone",input.phone).limit(10),
-    db.from("contacts").select("id,email,phone").eq("email",input.email).limit(10),
+    input.email ? db.from("contacts").select("id,email,phone").eq("email",input.email).limit(10) : Promise.resolve({ data: [] as {id:string;email:string|null;phone:string|null}[], error: null }),
   ]);
   if (phoneMatches.error || emailMatches.error) return "No se pudo comprobar si el contacto existe. Intenta nuevamente.";
   const matches = [...phoneMatches.data,...emailMatches.data].filter(c => c.id !== id);

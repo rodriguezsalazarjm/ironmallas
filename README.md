@@ -1,81 +1,72 @@
 # Iron Mallas 2.0
 
-Nueva versión de [ironmallas.cl](https://ironmallas.cl): web comercial en Next.js y, en fases
-siguientes, plataforma privada de gestión (CRM, agenda, cotizaciones, instalaciones, reseñas y
-contenidos).
+Aplicación independiente: web comercial y panel administrativo privado para operar contactos,
+oportunidades, agenda, cotizaciones, instalaciones, pagos, garantías y contenido.
+WordPress y el dominio ironmallas.cl no se modifican desde este repositorio.
 
-> **Fase actual: 2A — Base administrativa implementada; activación de Supabase pendiente.** El WordPress de producción sigue intacto; este
-> proyecto no modifica WordPress, DNS ni dominio.
+## Estado real
 
-## Requisitos
+El software y las migraciones están implementados con pruebas locales. La activación del backend
+está pendiente del acceso autorizado al proyecto Supabase indicado por el propietario.
+Las pruebas PGlite usan PostgreSQL embebido con Auth/Storage de prueba: no equivalen a una prueba
+real de Supabase Auth, Storage, Cal.com o Resend. Consulta docs/ENTREGA-FINAL.md.
+No hay tarifas ni testimonios de ejemplo en la base de producción/desarrollo remoto.
 
-- Node.js 22 o superior (probado con Node 25 / npm 11)
-- npm
+## Requisitos e instalación
 
-## Puesta en marcha
+- Node.js 22 o superior (build local verificado con Node 25; CI y Vercel configurados en 22).
+- npm.
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev
+```powershell
+npm ci
+Copy-Item .env.example .env.local
+npm run dev -- --port 3000
 ```
 
-Abre <http://localhost:3000>.
+Abrir http://localhost:3000. Sin Supabase configurado, el sitio público conserva su contenido original,
+el acceso al panel informa configuración pendiente y el formulario ofrece WhatsApp sin afirmar guardado.
 
-## Scripts
+## Comprobaciones
 
-| Comando | Qué hace |
-|---------|----------|
-| `npm run dev` | Servidor de desarrollo (Turbopack) |
-| `npm run build` | Build de producción |
-| `npm run start` | Sirve el build |
-| `npm run lint` | ESLint (config de Next.js + TypeScript) |
-| `npm run typecheck` | Genera tipos de rutas y ejecuta `tsc --noEmit` |
-| `npm run check` | Lint + typecheck + build |
+```powershell
+npm test
+npm run check
+npm run test:http
+```
 
-## Variables de entorno
+- test: reglas monetarias, PDF/token, validación, fechas Chile y SQL/RLS en PostgreSQL embebido.
+- check: ESLint, tipos de rutas/TypeScript y build de producción.
+- test:http: arranca temporalmente el build, fuerza Supabase sin configurar y comprueba rutas/headers.
+  Cierra su proceso al finalizar. Requiere ejecutar build antes.
+- bootstrap:admin -- --confirm-development: provisionamiento controlado del primer SUPERADMIN;
+  leer docs/USUARIOS-AUTH.md antes de ejecutarlo.
+- media:migrate: inventario dry-run; descargas/uploads requieren flags explícitos, ver docs/MEDIA-MIGRATION.md.
 
-Ver [`.env.example`](.env.example). Las variables de Supabase se describen en `docs/FASE-2A.md`.
-Sin Supabase configurado se mantiene WhatsApp. Resend y los webhooks de Cal.com siguen pendientes.
+## Panel
 
-## Dónde está cada cosa
+/admin, /admin/leads, /admin/clientes, /admin/agenda, /admin/cotizaciones,
+/admin/instalaciones, /admin/pagos, /admin/resenas, /admin/contenido,
+/admin/tarifario, /admin/notificaciones, /admin/privacidad, /admin/usuarios y /admin/configuracion.
 
-| Necesito… | Archivo |
-|-----------|---------|
-| Cambiar textos, servicios, FAQ, proyectos, teléfono | [`src/content/site.ts`](src/content/site.ts) |
-| Cambiar colores, fuentes, sombras, animaciones | [`src/app/globals.css`](src/app/globals.css) |
-| Ver/editar una sección | [`src/components/site/`](src/components/site) |
-| Lógica del formulario | [`src/features/leads/`](src/features/leads) |
-| Metadatos SEO globales | [`src/app/layout.tsx`](src/app/layout.tsx) |
+Roles validados en servidor y RLS: ADMIN opera el negocio; SUPERADMIN administra acceso,
+tarifas/condiciones, preferencias y política de privacidad. No hay registro público de administradores.
 
 ## Documentación
 
-- [`docs/MIGRACION.md`](docs/MIGRACION.md) — análisis del export de WordPress, recursos, integraciones
-  y afirmaciones comerciales por validar.
-- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — estructura, principios, plan del panel `/admin`,
-  modelo de datos y seguridad.
+- docs/ENTREGA-FINAL.md: estado de entrega, verificaciones y pendientes.
+- docs/ARQUITECTURA.md: arquitectura y modelo de datos vigentes.
+- docs/CONFIGURACION.md: variables, instalación y activación segura de Supabase.
+- docs/DESPLIEGUE.md: GitHub, preview Vercel y salida a producción.
+- docs/INTEGRACIONES.md: webhooks Cal.com y correo Resend.
+- docs/MANUAL-ALVARO.md: uso cotidiano del panel.
+- docs/CRM-AGENDA.md, docs/COTIZACIONES.md, docs/DASHBOARD.md, docs/USUARIOS-AUTH.md.
+- docs/MEDIA-MIGRATION.md: respaldo y migración independiente de medios.
+- docs/MIGRACION.md: origen del WordPress y afirmaciones comerciales por validar.
+- docs/FASE-2A.md: registro histórico de la base inicial.
 
-## Estado de integraciones
+## Datos y secretos
 
-| Integración | Estado |
-|-------------|--------|
-| Cal.com (visita técnica) | ✅ Embed funcionando con el mismo enlace que WordPress |
-| WhatsApp / Instagram | ✅ Enlaces directos |
-| Formulario de cotización | ⚠️ Valida en servidor, pero **no guarda** hasta configurar Supabase (Fase 2). Lo informa al usuario y ofrece WhatsApp. |
-| Imágenes y videos | ⚠️ Se sirven desde `ironmallas.cl/wp-content/uploads` (optimizados por `next/image`). Migrar a Supabase Storage. |
-| Panel `/admin` | Implementado con login, roles y RLS; requiere configurar Supabase y provisionar perfiles. |
-
-## Material de migración
-
-El export `migration/ironmallas.WordPress.2026-11-02.xml` está excluido de Git (contiene datos de
-usuarios de WordPress). Conserva una copia local para consultas.
-
-## Fase 2A — panel y Supabase preparados
-
-La implementación actual añade login, autorización/RLS, bandeja y ficha de oportunidades,
-actividades, seguimientos, resumen y configuración de estados. La configuración remota está pendiente.
-Ver [docs/FASE-2A.md](docs/FASE-2A.md) para migración, permisos, variables, activación y pruebas.
-Las secciones anteriores describen el punto de partida de Fase 1; este apartado refleja el estado actual.
-
-Comprobación adicional: `npm test` ejecuta validación Zod y políticas SQL en PostgreSQL embebido,
-sin conectar servicios remotos. No sustituye las pruebas con Supabase real después de configurarlo.
+.env.local, backups, exportaciones XML, archivos de clientes y .vercel no se versionan.
+No copiar secretos en issues, PRs o logs. Solo las claves publishable llevan NEXT_PUBLIC_.
+Los archivos técnicos de instalaciones son privados. Publicar testimonios/fotos requiere consentimiento.
+La política de privacidad se entrega como borrador privado sujeto a validación legal/comercial.

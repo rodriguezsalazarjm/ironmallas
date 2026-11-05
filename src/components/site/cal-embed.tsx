@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarDays, ExternalLink, LoaderCircle } from "lucide-react";
 
 type CalApi = ((...args: unknown[]) => void) & {
@@ -23,27 +23,21 @@ type CalEmbedProps = {
 
 /**
  * Cal.com inline embed — same booking link and namespace as the WordPress
- * site. The embed script (~300 KB) is injected only when the section is about
- * to enter the viewport.
+ * site. The embed script is injected only after the visitor requests availability.
+ * A bounded loading state preserves a usable fallback when the provider fails.
  */
 export function CalEmbed({ link, namespace, origin }: CalEmbedProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const [state, setState] = useState<"idle" | "loading" | "ready">("idle");
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [activated, setActivated] = useState(false);
   const targetId = `cal-inline-${namespace}`;
 
   useEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        observer.disconnect();
-        setState("loading");
-        loadCal(origin);
-        const cal = window.Cal!;
-        cal("init", namespace, { origin });
-        cal.ns[namespace]("inline", {
+    if (!activated) return;
+    const timer = window.setTimeout(() => setState(current => current === "ready" ? current : "error"), 15000);
+    loadCal(origin);
+    const cal = window.Cal!;
+    cal("init", namespace, { origin });
+    cal.ns[namespace]("inline", {
           elementOrSelector: `#${targetId}`,
           calLink: link,
           config: { layout: "month_view", useSlotsViewOnSmallScreen: "true", theme: "light" },
@@ -54,19 +48,15 @@ export function CalEmbed({ link, namespace, origin }: CalEmbedProps) {
           layout: "month_view",
           cssVarsPerTheme: { light: { "cal-brand": "#06365A" }, dark: { "cal-brand": "#FC6B04" } },
         });
-        cal.ns[namespace]("on", { action: "linkReady", callback: () => setState("ready") });
-      },
-      { rootMargin: "400px" },
-    );
-    observer.observe(wrapper);
-    return () => observer.disconnect();
-  }, [link, namespace, origin, targetId]);
+        cal.ns[namespace]("on", { action: "linkReady", callback: () => { window.clearTimeout(timer); setState("ready"); } });
+    return () => window.clearTimeout(timer);
+  }, [activated, link, namespace, origin, targetId]);
 
   return (
-    <div ref={wrapperRef}>
-      <div className="relative min-h-[34rem]">
+    <div>
+      <div className="relative min-h-[20rem] sm:min-h-[34rem]">
         {state !== "ready" && (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center text-center text-ink-soft">
+          <div className="absolute inset-0 z-10 grid place-items-center bg-white px-4 text-center text-ink-soft">
             <div>
               {state === "loading" ? (
                 <LoaderCircle className="mx-auto size-8 animate-spin text-orange-600" aria-hidden="true" />
@@ -74,12 +64,14 @@ export function CalEmbed({ link, namespace, origin }: CalEmbedProps) {
                 <CalendarDays className="mx-auto size-8 text-navy-300" aria-hidden="true" />
               )}
               <p className="mt-3 text-sm" role="status">
-                {state === "loading" ? "Cargando calendario…" : "Preparando calendario…"}
+                {state === "loading" ? "Cargando calendario…" : state === "error" ? "No pudimos cargar la disponibilidad." : "Consulta los horarios disponibles"}
               </p>
+              {state === "idle" && <><p className="mt-2 max-w-xs text-sm">La disponibilidad se consulta en Cal.com al cargar el calendario.</p><button type="button" onClick={() => {setState("loading");setActivated(true);}} className="mt-5 min-h-12 rounded-xl bg-navy-700 px-5 py-3 text-sm font-semibold text-white hover:bg-navy-600">Cargar disponibilidad</button></>}
+              {state === "error" && <a href={`https://cal.com/${link}`} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex min-h-11 items-center font-semibold text-navy-700 underline">Consultar directamente en Cal.com</a>}
             </div>
           </div>
         )}
-        <div id={targetId} className="relative min-h-[34rem] w-full overflow-auto" />
+        <div id={targetId} className="relative min-h-[20rem] sm:min-h-[34rem] w-full overflow-auto" />
       </div>
       <p className="mt-3 text-center text-xs text-ink-soft">
         ¿No ves el calendario?{" "}

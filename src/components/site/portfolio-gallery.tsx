@@ -66,7 +66,7 @@ export function PortfolioGallery({ projects }: { projects: Project[] }) {
 
   return (
     <>
-      <div role="toolbar" aria-label="Filtrar proyectos" className="mt-10 flex flex-wrap justify-center gap-2">
+      <div role="group" aria-label="Filtrar proyectos" className="mt-10 flex flex-wrap justify-center gap-2">
         {filters.map((f) => (
           <button
             key={f.value}
@@ -145,7 +145,7 @@ export function PortfolioGallery({ projects }: { projects: Project[] }) {
           if (e.key === "ArrowRight") step(1);
           if (e.key === "ArrowLeft") step(-1);
         }}
-        className="m-auto max-h-[92dvh] w-[min(64rem,calc(100%-1.5rem))] overflow-visible bg-transparent p-0 text-white"
+        className="m-auto max-h-[92dvh] w-[min(64rem,calc(100%-1.5rem))] overflow-y-auto bg-transparent p-0 text-white"
       >
         {current && (
           <div className="animate-fade-in">

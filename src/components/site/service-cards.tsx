@@ -47,7 +47,7 @@ export function ServiceCards({ services }: { services: Service[] }) {
   const baseId = useId();
 
   return (
-    <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="mt-10 grid items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
       {services.map((service) => {
         const Icon = serviceIcons[service.icon];
         const isOpen = openSlug === service.slug;
@@ -57,7 +57,7 @@ export function ServiceCards({ services }: { services: Service[] }) {
         return (
           <article
             key={service.slug}
-            className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-lift"
+            className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-card transition duration-300 motion-safe:hover:-translate-y-1 hover:shadow-lift"
           >
             <div className="relative aspect-[16/10] overflow-hidden bg-navy-100">
               <Image

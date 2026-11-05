@@ -2,12 +2,14 @@ import {loadEnvConfig} from "@next/env";
 import {createClient} from "@supabase/supabase-js";
 import {z} from "zod";
 import type {Database} from "../src/lib/supabase/database.types";
+import {isIronmallasSupabaseUrl} from "../src/lib/supabase/config";
 loadEnvConfig(process.cwd());
 class BootstrapError extends Error {}
 async function main(){
   if(!process.argv.includes("--confirm-development") || process.env.IRONMALLAS_ENV!=="development")throw new BootstrapError("Solo desarrollo autorizado: define IRONMALLAS_ENV=development y usa --confirm-development.");
   const config=z.object({url:z.url(),secret:z.string().min(20),email:z.email().max(120).transform(v=>v.toLowerCase()),name:z.string().trim().min(2).max(120),site:z.url()}).safeParse({url:process.env.NEXT_PUBLIC_SUPABASE_URL,secret:process.env.SUPABASE_SECRET_KEY,email:process.env.BOOTSTRAP_ADMIN_EMAIL,name:process.env.BOOTSTRAP_ADMIN_NAME,site:process.env.AUTH_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL});
   if(!config.success)throw new BootstrapError("Faltan URL/clave de Supabase, BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_NAME o AUTH_SITE_URL. No se muestran valores en consola.");
+  if(!isIronmallasSupabaseUrl(config.data.url))throw new BootstrapError("El bootstrap solo admite el proyecto exclusivo de Iron Mallas. No se inició conexión.");
   const d=config.data,origin=new URL(d.site);if(origin.protocol!=="https:" && !["localhost","127.0.0.1"].includes(origin.hostname))throw new BootstrapError("AUTH_SITE_URL debe usar HTTPS fuera de localhost.");
   const db=createClient<Database>(d.url,d.secret,{auth:{persistSession:false,autoRefreshToken:false}});
   let userId:string|null=null;

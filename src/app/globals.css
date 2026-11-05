@@ -138,3 +138,46 @@ dialog::backdrop {
   background: rgb(3 23 38 / 0.72);
   backdrop-filter: blur(6px);
 }
+
+/* Shared operational controls: readable on phones without browser input zoom. */
+.admin-shell { overflow-wrap: anywhere; }
+.admin-shell :where(input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea) {
+  min-height: 3rem;
+  max-width: 100%;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.admin-shell textarea { resize: vertical; }
+.admin-shell :where(input[type=checkbox], input[type=radio]) {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  accent-color: var(--color-navy-700);
+}
+.admin-shell label:has(> input[type=checkbox]) {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  min-height: 2.75rem;
+}
+.admin-shell :where(button, summary) { touch-action: manipulation; }
+.admin-shell button { min-height: 2.75rem; }
+.admin-shell form.flex > label { min-width: 0; }
+.admin-shell :where(th, td) { padding: .85rem; vertical-align: top; }
+.admin-shell th { color: var(--color-navy-700); text-align: left; background: var(--color-navy-50); }
+.admin-shell td { border-top: 1px solid var(--color-line); }
+.admin-bottom-nav { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+@media (width < 40rem) {
+  .admin-shell form.flex > label { flex: 1 1 100%; }
+  .admin-shell form.flex > :where(button, a) { flex: 1 1 auto; }
+  .admin-page-heading > :last-child:not(:first-child) { width: 100%; }
+  .admin-page-heading > a { width: 100%; }
+  .admin-page-heading > div:last-child:not(:first-child) > a { flex: 1; }
+  .admin-shell h1 { font-size: 1.875rem; }
+}
+@media (hover: hover) {
+  .admin-shell main a.rounded-2xl:hover { box-shadow: var(--shadow-card); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation-delay: 0ms !important; }
+}

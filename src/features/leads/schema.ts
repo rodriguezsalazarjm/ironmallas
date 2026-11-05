@@ -38,10 +38,16 @@ export const leadSchema = z.object({
     utmTerm: optionalTracking,
     landingPage: optionalTracking,
     referrer: optionalTracking,
+    fbclid: optionalTracking,
+    gclid: optionalTracking,
   }),
+  submission_id: z.uuid().optional(),
 });
 
 export type LeadInput = z.infer<typeof leadSchema>;
+export function createLeadSchema(options:[string,...string[]]){
+  return leadSchema.extend({service:z.enum(options,{error:"Selecciona un servicio."})});
+}
 
 export type LeadFieldErrors = Partial<Record<"name" | "phone" | "email" | "service" | "commune" | "message" | "consent", string>>;
 
@@ -50,5 +56,6 @@ export type LeadFormState =
   | { status: "invalid"; fieldErrors: LeadFieldErrors; message: string }
   /** Valid data, but there is no persistent storage to save it in yet. */
   | { status: "unavailable"; message: string; whatsappHref: string }
-  | { status: "error"; message: string }
-  | { status: "success"; message: string };
+  | { status: "error"; message: string; whatsappHref?: string }
+  /** Mostrado solo después de que Supabase confirmó el guardado. */
+  | { status: "success"; message: string; whatsappHref?: string };

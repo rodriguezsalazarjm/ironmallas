@@ -29,7 +29,7 @@ export function Header({ brand, contact, nav }: HeaderProps) {
 
       <div className="rounded-b-2xl bg-navy-700/95 shadow-[0_8px_30px_rgb(3_23_38/0.35)] backdrop-blur-md">
         <div className="container-site flex h-[4.5rem] items-center justify-between gap-4">
-          <Link href="#inicio" className="shrink-0" aria-label={`${brand.name} — ir al inicio`}>
+          <Link href="/#inicio" className="shrink-0" aria-label={`${brand.name} — ir al inicio`}>
             <Image
               src={brand.logo.src}
               alt={brand.logo.alt}
@@ -45,12 +45,12 @@ export function Header({ brand, contact, nav }: HeaderProps) {
             <ul className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1.5">
               {nav.map((item) => (
                 <li key={item.href}>
-                  <a
-                    href={item.href}
+                  <Link
+                    href={item.href.startsWith("#") ? `/${item.href}` : item.href}
                     className="block rounded-full px-4 py-2 font-display text-[0.8rem] font-semibold uppercase tracking-wider text-white/90 transition hover:bg-white/15 hover:text-white"
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

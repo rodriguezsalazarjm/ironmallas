@@ -7,7 +7,7 @@ import {Field,fieldClass,primaryClass} from "./ui";
 export function ContactForm({contact}:{contact?:Contact}) {
   const [message,action,pending]=useActionState(saveContact,"");
   const fields = [
-    ["name","Nombre completo",80,true],["phone","Teléfono",24,true],["email","Correo electrónico",120,true],
+    ["name","Nombre completo",80,true],["phone","Teléfono",24,true],["email","Correo electrónico (opcional)",120,false],
     ["whatsapp","WhatsApp (si es distinto)",24,false],["address","Dirección",240,false],["unit","Departamento o unidad",80,false],
     ["commune","Comuna",60,false],["region","Región",100,false],["location_url","Ubicación (enlace HTTPS)",500,false],
     ["source","Origen comercial",120,true],

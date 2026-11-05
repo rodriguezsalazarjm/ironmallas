@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+const storageHost=process.env.NEXT_PUBLIC_SUPABASE_URL?new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname:null;
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -9,6 +10,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
@@ -27,10 +29,12 @@ const nextConfig: NextConfig = {
     // Phase 2 moves it to Supabase Storage and adds that host here.
     remotePatterns: [
       { protocol: "https", hostname: "ironmallas.cl", pathname: "/wp-content/uploads/**", search: "" },
+      ...(storageHost?[{protocol:"https" as const,hostname:storageHost,pathname:"/storage/v1/object/public/public-media/**",search:""}]:[]),
     ],
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    const privateHeaders=[{key:"Referrer-Policy",value:"no-referrer"},{key:"Cache-Control",value:"private, no-store"},{key:"X-Robots-Tag",value:"noindex, nofollow, noarchive"}];
+    return [{ source: "/:path*", headers: securityHeaders },{source:"/auth/:path*",headers:privateHeaders},{source:"/cotizacion/:path*",headers:privateHeaders}];
   },
 };
 
