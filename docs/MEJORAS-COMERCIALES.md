@@ -38,15 +38,15 @@ Resultado local (5-11-2026): `npm test` → 48 pruebas, 44 aprobadas, 0 fallidas
 
 ## 3. Dependencias comerciales
 
-- Tarifario oficial por m² (mínimos, recargos, descuento máximo) y valores de adicionales/laterales.
+- ~~Tarifario base~~ **Resuelto (5-11-2026):** instalación solo ángulos $6.000/m lineal, recambio $5.000/m lineal, pilares $17.990 (2,00 m) y $19.990 (2,40 m), en la migración `20261105150000_quote_linear_pricing.sql`. Ver `docs/cotizador/README.md`. Pendiente: descuento máximo para ADMIN, mínimos y recargos si existen.
 - Condiciones de pago, vigencia y, si existe, garantía aprobada para el PDF.
-- Datos de empresa que se imprimirán (nombre comercial, teléfono, correo; RUT y dirección solo si se aprueban).
+- **Resuelto:** identificación legal desde los certificados SII y de estatuto (`src/content/company.ts`): Solinteg Security Asociados SpA, RUT 78.467.119-4, Antonio Bellet 193 of. 1210, Providencia. Se usa en PDF, pie del sitio y políticas.
 - Confirmar los tipos de malla y características que deben ofrecerse (hoy: malla de seguridad, multifilamento, otro; niños, mascotas, altura, retiro de malla existente).
 - Definir quién responde las oportunidades y la próxima acción estándar.
 
 ## 4. Dependencias legales
 
-- Revisión legal de ambas políticas antes de quitar la marca de borrador. Completar: razón social, RUT, domicilio, contacto de privacidad/delegado, plazos de conservación, lista final de proveedores y regiones, plazo de respuesta a solicitudes.
+- Revisión legal de ambas políticas antes de quitar la marca de borrador. Ya completados: razón social, RUT, domicilio y plazo de respuesta (30 días corridos, Ley 21.719, a validar). Faltan: delegado de protección de datos (si se designa), plazo de conservación de solicitudes no convertidas, confirmación del plazo tributario con el contador y lista final de proveedores y regiones.
 - Ley 19.628 modificada por la **Ley 21.719** (entrada en vigencia prevista el 1-12-2026): confirmar bases de licitud (consentimiento del formulario; solicitud precontractual para contactos por WhatsApp/teléfono), deber de información en formularios de Meta (enlazar la política en el formulario instantáneo) y procedimiento ARCOP (hoy: Mi cuenta → Solicitudes de privacidad).
 - Antes de activar GA o Meta Pixel: actualizar la política de cookies con nombres, duración y finalidad exactos.
 

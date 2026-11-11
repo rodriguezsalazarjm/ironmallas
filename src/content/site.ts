@@ -1,4 +1,5 @@
 import type { SiteContent } from "./types";
+import { company } from "./company";
 
 /**
  * Commercial content recovered from the WordPress export
@@ -12,9 +13,10 @@ const UPLOADS = "https://ironmallas.cl/wp-content/uploads/2026/04";
 export const siteContent: SiteContent = {
   brand: {
     name: "Iron Mallas",
-    legalName: "IRON MALLAS.CL",
+    legalName: company.legalName,
     tagline: "Seguridad real. Trabajo bien hecho.",
-    logo: { src: `${UPLOADS}/Recurso-2.png`, alt: "Iron Mallas", width: 1421, height: 279 },
+    // Logotipo oficial (versión para fondos oscuros) servido desde el propio sitio.
+    logo: { src: "/brand/logo.png", alt: "Iron Mallas", width: 1421, height: 279 },
     mascot: { src: `${UPLOADS}/Recurso-4.png`, alt: "", width: 1629, height: 1547 },
   },
 

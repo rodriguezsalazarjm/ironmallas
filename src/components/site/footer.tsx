@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Mail, MapPin, Phone } from "lucide-react";
 
 import type { SiteContent } from "@/content/types";
+import { company, companyIdentification } from "@/content/company";
 import { InstagramIcon, WhatsAppIcon } from "@/components/ui/icons";
 import { telUrl, whatsappUrl } from "@/lib/links";
 
@@ -108,7 +109,8 @@ export function Footer({ brand, contact, nav, services, footer }: FooterProps) {
 
         <div className="flex flex-col gap-3 border-t border-white/10 py-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © <CopyrightYear /> <span className="text-white/80">{brand.legalName}</span> — Todos los derechos reservados.
+            © <CopyrightYear /> <span className="text-white/80">{brand.name}</span> — Todos los derechos reservados.
+            <span className="mt-1 block">{companyIdentification} · {company.address}</span>
           </p>
           <p>
             Diseñado por{" "}

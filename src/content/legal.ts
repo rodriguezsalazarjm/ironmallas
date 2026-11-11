@@ -1,29 +1,33 @@
 /**
  * Textos legales públicos. BORRADOR sujeto a revisión legal antes de su publicación definitiva.
  * Los datos marcados con [PENDIENTE: …] deben ser aprobados por Iron Mallas; no se inventan.
+ * Identificación del responsable: certificado de inicio de actividades del SII y certificado de estatuto (src/content/company.ts).
  * Referencia normativa: Ley 19.628 sobre Protección de la Vida Privada, modificada por la Ley 21.719
  * (publicada el 13-12-2024; entrada en vigencia prevista el 01-12-2026), y sus eventuales modificaciones o reglamentos.
  */
+import { company } from "./company";
+
 export type LegalSection = { title: string; paragraphs: string[]; items?: string[] };
 export type LegalDocument = { title: string; version: string; updated: string; draftNotice: string; intro: string; sections: LegalSection[] };
 
-const DRAFT = "Borrador sujeto a revisión legal. Los datos señalados como pendientes deben completarse y aprobarse antes de la publicación definitiva.";
+const DRAFT = "Texto sujeto a revisión legal. Los puntos señalados como pendientes deben completarse y aprobarse antes de la versión definitiva.";
 
 export const privacyPolicy: LegalDocument = {
-  title: "Política de privacidad",
-  version: "0.9 (borrador)",
+  title: "Política de privacidad y tratamiento de datos personales",
+  version: "1.0 (para revisión legal)",
   updated: "5 de noviembre de 2026",
   draftNotice: DRAFT,
-  intro: "Esta política explica cómo Iron Mallas trata los datos personales de las personas que solicitan cotizaciones, agendan visitas o contratan sus servicios de instalación de mallas de seguridad y otros trabajos en el hogar, en Chile.",
+  intro: `Esta política explica cómo ${company.legalName}, titular de la marca Iron Mallas, trata los datos personales de las personas que solicitan cotizaciones, agendan visitas o contratan sus servicios de instalación de mallas de seguridad y otros trabajos en el hogar, en Chile.`,
   sections: [
     { title: "1. Responsable del tratamiento", paragraphs: [
-      "Iron Mallas ([PENDIENTE: razón social]), RUT [PENDIENTE: RUT], con domicilio en [PENDIENTE: domicilio legal], Santiago de Chile.",
-      "Contacto para privacidad: contacto@ironmallas.cl · WhatsApp +56 9 4582 3209. [PENDIENTE: confirmar si existe un correo específico para privacidad o un delegado de protección de datos].",
+      `El responsable del tratamiento es ${company.legalName}, RUT ${company.rut}, sociedad por acciones que opera bajo la marca comercial Iron Mallas, con domicilio en ${company.address}.`,
+      `Contacto para privacidad y ejercicio de derechos: ${company.email} · WhatsApp ${company.phoneDisplay}. [PENDIENTE: indicar si se designa un delegado de protección de datos].`,
     ] },
     { title: "2. Datos que recolectamos", paragraphs: ["Solo pedimos los datos necesarios para responder y prestar el servicio:"], items: [
       "Identificación y contacto: nombre, teléfono o WhatsApp y, si lo entregas, correo electrónico.",
       "Datos del trabajo: dirección o comuna, tipo de servicio, medidas, fotografías y observaciones de las zonas a proteger.",
       "Historial comercial: solicitudes, cotizaciones, visitas, instalaciones, pagos registrados y garantías.",
+      "Datos tributarios, solo cuando contratas: nombre o razón social, RUT, giro y dirección para emitir la boleta o factura que corresponda.",
       "Origen de la solicitud: canal por el que nos contactaste (sitio web, WhatsApp, formularios de Facebook o Instagram) y, cuando existan, parámetros de campaña (por ejemplo UTM) o identificadores del anuncio entregados por Meta.",
       "Datos técnicos mínimos para seguridad del sitio y prevención de abuso (por ejemplo, una huella cifrada de la dirección IP para limitar envíos repetidos).",
     ] },
@@ -33,6 +37,7 @@ export const privacyPolicy: LegalDocument = {
       "Gestionar la relación con clientes: seguimiento, pagos, garantías y atención posterior.",
       "Medir el resultado de campañas publicitarias, solo si aceptas cookies de analítica o marketing, o mediante datos de origen entregados por la propia plataforma cuando nos contactas desde un anuncio.",
       "Cumplir obligaciones legales, tributarias y de seguridad.",
+      "No vendemos tus datos ni los usamos para decisiones automatizadas que produzcan efectos jurídicos sobre ti.",
     ] },
     { title: "4. Base de licitud", paragraphs: [
       "Tratamos tus datos con tu consentimiento (por ejemplo, al enviar el formulario), para ejecutar medidas precontractuales o el contrato que solicitas, y para cumplir obligaciones legales. Puedes retirar tu consentimiento en cualquier momento, sin efecto retroactivo.",
@@ -51,7 +56,9 @@ export const privacyPolicy: LegalDocument = {
       "[PENDIENTE: confirmar la lista definitiva y las regiones de alojamiento contratadas].",
     ] },
     { title: "7. Conservación", paragraphs: [
-      "Conservamos los datos mientras exista una relación comercial o solicitud activa y, después, durante el plazo necesario para atender garantías y obligaciones legales. [PENDIENTE: plazo aprobado, por ejemplo N años desde el último servicio]. Las solicitudes que no avanzan a cotización se eliminan o anonimizan en [PENDIENTE: plazo].",
+      "Conservamos los datos mientras exista una relación comercial o solicitud activa y, después, durante el plazo necesario para atender garantías, reclamos y obligaciones legales.",
+      "Los antecedentes de respaldo tributario (boletas, facturas y su información asociada) se conservan durante el plazo que exige la normativa tributaria, actualmente de seis años. [PENDIENTE: confirmar con el contador].",
+      "Las solicitudes y cotizaciones que no avanzan a contratación se eliminan o anonimizan en [PENDIENTE: plazo aprobado por Iron Mallas, por ejemplo 24 meses desde el último contacto].",
     ] },
     { title: "8. Seguridad", paragraphs: [
       "Aplicamos medidas técnicas y organizativas razonables: acceso al panel solo para personal autorizado con contraseña, control de permisos por rol en la base de datos, conexiones cifradas, registros de auditoría y enlaces de documentos con vencimiento.",
@@ -65,7 +72,8 @@ export const privacyPolicy: LegalDocument = {
       "Bloqueo temporal del tratamiento en los casos que establece la ley.",
     ] },
     { title: "10. Cómo ejercer tus derechos", paragraphs: [
-      "Escríbenos a contacto@ironmallas.cl o por WhatsApp indicando tu nombre, el derecho que quieres ejercer y un medio de contacto. Podremos pedirte antecedentes para verificar tu identidad. Responderemos dentro del plazo legal aplicable [PENDIENTE: confirmar plazo con asesoría legal].",
+      `Escríbenos a ${company.email} o por WhatsApp indicando tu nombre, el derecho que quieres ejercer y un medio de contacto. Podremos pedirte antecedentes para verificar tu identidad. El ejercicio de tus derechos es gratuito.`,
+      "Responderemos dentro del plazo legal, que la Ley 21.719 fija en treinta días corridos desde la recepción de la solicitud, prorrogable por una vez por igual período cuando sea necesario. [PENDIENTE: validar con asesoría legal].",
       "Si no quedas conforme con la respuesta, podrás recurrir ante la autoridad de control competente (la Agencia de Protección de Datos Personales, una vez en funcionamiento) conforme a la ley.",
     ] },
     { title: "11. Cookies", paragraphs: ["Revisa nuestra Política de cookies para conocer qué cookies usamos y cómo cambiar tus preferencias."] },
@@ -75,7 +83,7 @@ export const privacyPolicy: LegalDocument = {
 
 export const cookiePolicy: LegalDocument = {
   title: "Política de cookies",
-  version: "0.9 (borrador)",
+  version: "1.0 (para revisión legal)",
   updated: "5 de noviembre de 2026",
   draftNotice: DRAFT,
   intro: "Las cookies son pequeños archivos que el navegador guarda al visitar un sitio. Esta política describe las que usa ironmallas.cl según la auditoría técnica del 5 de noviembre de 2026.",
@@ -96,6 +104,6 @@ export const cookiePolicy: LegalDocument = {
     { title: "5. Cómo cambiar tus preferencias", paragraphs: [
       "Usa el enlace «Preferencias de cookies» al pie de cualquier página para aceptar, rechazar o configurar las categorías opcionales cuando existan. También puedes borrar las cookies desde tu navegador.",
     ] },
-    { title: "6. Contacto", paragraphs: ["Consultas: contacto@ironmallas.cl. Más información en la Política de privacidad."] },
+    { title: "6. Responsable y contacto", paragraphs: [`Responsable: ${company.legalName} (marca Iron Mallas), RUT ${company.rut}, ${company.address}. Consultas: ${company.email}. Más información en la Política de privacidad y tratamiento de datos personales.`] },
   ],
 };

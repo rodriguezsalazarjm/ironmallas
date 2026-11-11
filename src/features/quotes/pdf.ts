@@ -4,7 +4,8 @@ import { generateQuickPdf } from "./pdf-quick";
 import { clp } from "./calculation";
 export const navy=rgb(0.024,0.212,0.353),orange=rgb(0.988,0.42,0.016),ink=rgb(0.12,0.18,0.23),muted=rgb(0.35,0.4,0.44),lineColor=rgb(0.86,0.89,0.91);
 // Helvetica supports Spanish accents. Unsupported user glyphs are replaced rather than breaking PDF generation.
-export function safe(value:string){return value.replace(/[^\x20-\x7e\xa0-\xff\n]/g,"?").replace(/\r/g,"");}
+// WinAnsi también incluye guiones largos, comillas tipográficas, viñeta y puntos suspensivos.
+export function safe(value:string){return value.replace(/→/g,"->").replace(/[^\x20-\x7e\xa0-\xff\n–—‘’“”•…]/g,"?").replace(/\r/g,"");}
 export function wrap(value:string,font:PDFFont,size:number,width:number):string[]{
   const result:string[]=[];
   for(const paragraph of safe(value).split("\n")){
@@ -19,9 +20,10 @@ export function wrap(value:string,font:PDFFont,size:number,width:number):string[
   }
   return result;
 }
-export async function generateQuotePdf(snapshot:QuoteSnapshot,logo?:Uint8Array):Promise<Uint8Array>{
+/** logo: versión blanca (banda navy del formato anterior); colorLogo: versión a color para el PDF del cotizador. */
+export async function generateQuotePdf(snapshot:QuoteSnapshot,logo?:Uint8Array,colorLogo?:Uint8Array):Promise<Uint8Array>{
   const quick=quickDetailsSchema.safeParse(snapshot.quote.details);
-  if(quick.success)return generateQuickPdf(snapshot,quick.data,logo);
+  if(quick.success)return generateQuickPdf(snapshot,quick.data,colorLogo);
   const doc=await PDFDocument.create();
   doc.setTitle(`Cotización IM-${String(snapshot.quote.number).padStart(6,"0")} · v${snapshot.quote.current_version}`);
   doc.setAuthor(snapshot.company.name);doc.setSubject("Cotización comercial Iron Mallas");doc.setCreator("Iron Mallas 2.0");

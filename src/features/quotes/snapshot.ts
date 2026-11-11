@@ -8,9 +8,9 @@ export const quoteSnapshotSchema=z.object({
   company:z.object({name:z.string().min(1),rut:z.string().optional(),address:z.string().optional(),email:z.string().optional(),phone:z.string().optional()}),
 });
 export type QuoteSnapshot=z.infer<typeof quoteSnapshotSchema>;
-const zone=z.object({kind:z.string(),description:z.string(),width_mm:z.number(),height_mm:z.number(),quantity:z.number(),area_milli_m2:z.number(),notes:z.string().optional()});
+const zone=z.object({kind:z.string(),description:z.string(),width_mm:z.number(),height_mm:z.number(),quantity:z.number(),area_milli_m2:z.number(),linear_mm:z.number().optional(),notes:z.string().optional()});
 /** Detalle del cotizador rápido guardado en quotes.details y copiado en cada snapshot. */
-export const quickDetailsSchema=z.object({kind:z.literal("quick"),service:z.string(),mesh_type:z.string().optional(),features:z.array(z.string()).optional(),work_address:z.string().optional(),zones:z.array(zone).min(1),area_milli_m2:z.number(),
-  pricing:z.object({mode:z.enum(["rate","manual"]),rule_name:z.string().optional(),unit_price:z.number().optional(),min_applied:z.boolean().optional(),surcharge_bps:z.number().optional()}),main_amount:z.number(),surcharge_amount:z.number(),
-  extras:z.array(z.object({kind:z.string(),description:z.string(),amount:z.number()})).optional()});
+export const quickDetailsSchema=z.object({kind:z.literal("quick"),service:z.string(),mesh_type:z.string().optional(),features:z.array(z.string()).optional(),work_address:z.string().optional(),zones:z.array(zone).min(1),area_milli_m2:z.number(),linear_mm:z.number().optional(),measure:z.enum(["m2","ml","manual"]).optional(),definitive:z.boolean().optional(),
+  pricing:z.object({mode:z.enum(["rate","manual"]),rule_name:z.string().optional(),unit:z.string().optional(),unit_price:z.number().optional(),min_applied:z.boolean().optional(),surcharge_bps:z.number().optional()}),main_amount:z.number(),surcharge_amount:z.number(),
+  extras:z.array(z.object({kind:z.string(),description:z.string(),amount:z.number(),rule_name:z.string().optional(),unit_price:z.number().optional(),quantity_milli:z.number().optional()})).optional()});
 export type QuickDetails=z.infer<typeof quickDetailsSchema>;

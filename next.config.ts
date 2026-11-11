@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // Los PDF de cotización leen los logotipos oficiales desde public/brand en tiempo de ejecución.
+  outputFileTracingIncludes: {
+    "/admin/cotizaciones/[id]/pdf": ["./public/brand/logo.png", "./public/brand/logo-color.png"],
+    "/cotizacion/[token]": ["./public/brand/logo.png", "./public/brand/logo-color.png"],
+  },
   turbopack: {
     rules: {
       "*.css": {

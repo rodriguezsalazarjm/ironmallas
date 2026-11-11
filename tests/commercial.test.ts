@@ -85,7 +85,7 @@ test("servidor (SQL) y navegador (TS) entregan el mismo resultado; permisos del 
   } finally { await db.close(); }
 });
 
-test("PDF rápido pagina 30 zonas y no inventa RUT", async () => {
+test("PDF rápido pagina 30 zonas con identificación legal oficial", async () => {
   const zones = Array.from({ length: 30 }, (_, i) => ({ kind: "ventana", description: `Ventana ${i + 1} ${"texto largo ".repeat(6)}`, width_mm: 1200, height_mm: 1000, quantity: 1, area_milli_m2: 1200, notes: i % 3 ? "" : "Observación de prueba" }));
   const snapshot = quoteSnapshotSchema.parse({
     quote: { id: "11111111-1111-4111-8111-111111111111", number: 7, current_version: 1, created_at: "2026-11-05T15:00:00Z", valid_until: "2026-11-20", status: "draft", subtotal: 100000, discount_bps: 0, discount_amount: 0, net: 100000, tax_bps: 1900, tax: 19000, total: 119000, payment_terms: "Condiciones sintéticas", warranty: null, notes: null,
@@ -96,10 +96,9 @@ test("PDF rápido pagina 30 zonas y no inventa RUT", async () => {
   });
   const pdf = await generateQuotePdf(snapshot);
   assert.ok((await PDFDocument.load(pdf)).getPageCount() >= 2);
-  // El RUT solo se imprime si está configurado en las condiciones comerciales (no se inventa).
+  // La identificación legal proviene de los certificados oficiales (src/content/company.ts), no de datos inventados.
   const source = await readFile(new URL("../src/features/quotes/pdf-quick.ts", import.meta.url), "utf8");
-  assert.match(source, /co\.rut \? `RUT \$\{co\.rut\}` : ""/);
-  assert.ok((await PDFDocument.load(await generateQuotePdf({ ...snapshot, company: { name: "Empresa de prueba", rut: "11.111.111-1" } }))).getPageCount() >= 2);
+  assert.match(source, /companyIdentification/);
 });
 
 test("entrada única de oportunidades: deduplicación, reutilización de contacto y acceso solo de servicio", async () => {

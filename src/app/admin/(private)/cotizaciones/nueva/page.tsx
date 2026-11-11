@@ -25,7 +25,7 @@ export default async function NewQuotePage({ searchParams }: PageProps<"/admin/c
     const details = quote.data?.details as Record<string, unknown> | undefined;
     const payload = details?.kind === "quick" ? quickPayloadSchema.safeParse({
       service: details.service, mesh_type: details.mesh_type ?? "", features: details.features ?? [], work_address: details.work_address ?? "",
-      zones: details.zones, pricing: details.pricing, extras: details.extras ?? [], discount_bps: 0, apply_tax: details.apply_tax ?? true, notes: "",
+      zones: details.zones, pricing: details.pricing, extras: details.extras ?? [], discount_bps: 0, apply_tax: details.apply_tax ?? true, notes: "", definitive: details.definitive === true,
     }) : null;
     if (quote.error || !quote.data) editError = "No se encontró la cotización a editar.";
     else if (!["draft", "sent"].includes(quote.data.status)) editError = "Solo se editan borradores o cotizaciones enviadas.";

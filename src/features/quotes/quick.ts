@@ -8,7 +8,9 @@ import { roundHalfUp } from "./calculation";
 
 export const ZONE_KINDS = { balcon: "Balcón", ventana: "Ventana", logia: "Logia", terraza: "Terraza", otra: "Otra zona" } as const;
 export type ZoneKind = keyof typeof ZONE_KINDS;
-export const EXTRA_KINDS = { adicional: "Adicional", lateral: "Lateral / trabajo adicional", recargo: "Recargo" } as const;
+export const EXTRA_KINDS = { pilar: "Pilar adicional", adicional: "Adicional", lateral: "Lateral / trabajo adicional", recargo: "Recargo" } as const;
+/** Unidades de tarifa: m² (ancho × alto) y metro lineal (ancho + alto, sin convertir a perímetro). */
+export const RATE_UNITS = { m2: "m²", ml: "metro lineal" } as const;
 export type ExtraKind = keyof typeof EXTRA_KINDS;
 
 const MAX_MONEY = BigInt(2147483647);
@@ -40,11 +42,13 @@ export const quickPayloadSchema = z.object({
   discount_bps: z.number().int().min(0).max(10000),
   apply_tax: z.boolean(),
   notes: text(3000),
+  /** true solo tras la evaluación técnica: el PDF deja de ser «referencial». */
+  definitive: z.boolean().default(false),
 });
-export type QuickPayload = z.infer<typeof quickPayloadSchema>;
-export type QuickRate = { id: string; name: string; unit: "m2" | "unit" | "hour" | "fixed"; unit_price: number; min_price: number; surcharge_bps: number; max_discount_bps: number; active: boolean };
+export type QuickPayload = z.input<typeof quickPayloadSchema>;
+export type QuickRate = { id: string; name: string; unit: "m2" | "ml" | "unit" | "hour" | "fixed"; unit_price: number; min_price: number; surcharge_bps: number; max_discount_bps: number; active: boolean };
 export type QuickResult = {
-  zones: { area_milli_m2: number }[]; area_milli_m2: number; main: number; surcharge: number; min_applied: boolean;
+  zones: { area_milli_m2: number; linear_mm: number }[]; area_milli_m2: number; linear_mm: number; measure: "m2" | "ml" | "manual"; main: number; surcharge: number; min_applied: boolean;
   extras: number[]; subtotal: number; discount: number; net: number; tax_bps: number; tax: number; total: number; max_discount_bps: number;
 };
 
@@ -56,6 +60,11 @@ function money(value: bigint) {
 /** Área en milésimas de m² con 3 decimales: "12,345". */
 export function areaLabel(milli: number) {
   return `${Math.trunc(milli / 1000).toLocaleString("es-CL")},${String(milli % 1000).padStart(3, "0")}`;
+}
+
+/** Metros lineales con 2 decimales: 5200 mm → "5,20". */
+export function linearLabel(mm: number) {
+  return (mm / 1000).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
 }
 
 /** Convierte "1,25" metros en milímetros exactos (hasta 3 decimales) sin coma flotante. */
@@ -70,18 +79,20 @@ export function calculateQuick(payload: QuickPayload, rates: QuickRate[], taxBps
   const parsed = quickPayloadSchema.parse(payload);
   if (!Number.isSafeInteger(taxBps) || taxBps < 0 || taxBps > 10000) throw new Error("IVA no configurado.");
   if (!parsed.apply_tax && !superadmin) throw new Error("Solo SUPERADMIN puede omitir el IVA.");
-  let areaMm2 = BigInt(0);
+  let areaMm2 = BigInt(0), linearMm = BigInt(0);
   const zones = parsed.zones.map(z => {
     const product = BigInt(z.width_mm) * BigInt(z.height_mm) * BigInt(z.quantity);
-    areaMm2 += product;
-    return { area_milli_m2: Number(roundHalfUp(product, BigInt(1000))) };
+    const linear = (BigInt(z.width_mm) + BigInt(z.height_mm)) * BigInt(z.quantity);
+    areaMm2 += product; linearMm += linear;
+    return { area_milli_m2: Number(roundHalfUp(product, BigInt(1000))), linear_mm: Number(linear) };
   });
-  let main: bigint, surcharge = BigInt(0), maxDiscount = 10000, minApplied = false;
+  let main: bigint, surcharge = BigInt(0), maxDiscount = 10000, minApplied = false, measure: QuickResult["measure"] = "manual";
   if (parsed.pricing.mode === "rate") {
     const ruleId = parsed.pricing.rule_id;
     const rule = rates.find(r => r.id === ruleId && r.active);
-    if (!rule || rule.unit !== "m2") throw new Error("Selecciona una tarifa por m² autorizada.");
-    const raw = roundHalfUp(BigInt(rule.unit_price) * areaMm2, BigInt(1000000));
+    if (!rule || (rule.unit !== "m2" && rule.unit !== "ml")) throw new Error("Selecciona una tarifa autorizada.");
+    measure = rule.unit;
+    const raw = rule.unit === "ml" ? roundHalfUp(BigInt(rule.unit_price) * linearMm, BigInt(1000)) : roundHalfUp(BigInt(rule.unit_price) * areaMm2, BigInt(1000000));
     minApplied = raw < BigInt(rule.min_price);
     main = minApplied ? BigInt(rule.min_price) : raw;
     surcharge = roundHalfUp(main * BigInt(rule.surcharge_bps), BigInt(10000));
@@ -93,7 +104,8 @@ export function calculateQuick(payload: QuickPayload, rates: QuickRate[], taxBps
   const extras = parsed.extras.map(extra => {
     if ("rule_id" in extra) {
       const rule = rates.find(r => r.id === extra.rule_id && r.active);
-      if (!rule || rule.unit === "m2") throw new Error("Tarifa de adicional no disponible.");
+      if (!rule || rule.unit === "m2" || rule.unit === "ml") throw new Error("Tarifa de adicional no disponible.");
+      if (extra.kind === "pilar" && extra.quantity_milli % 1000 !== 0) throw new Error("Los pilares se cotizan por unidades enteras.");
       const raw = roundHalfUp(BigInt(rule.unit_price) * BigInt(extra.quantity_milli), BigInt(1000));
       const base = raw > BigInt(rule.min_price) ? raw : BigInt(rule.min_price);
       maxDiscount = Math.min(maxDiscount, rule.max_discount_bps);
@@ -110,7 +122,7 @@ export function calculateQuick(payload: QuickPayload, rates: QuickRate[], taxBps
   const tax = roundHalfUp(net * BigInt(tax_bps), BigInt(10000));
   if (net + tax <= BigInt(0)) throw new Error("La cotización debe tener un total mayor que cero.");
   return {
-    zones, area_milli_m2: Number(roundHalfUp(areaMm2, BigInt(1000))), main: money(main), surcharge: money(surcharge), min_applied: minApplied,
+    zones, area_milli_m2: Number(roundHalfUp(areaMm2, BigInt(1000))), linear_mm: Number(linearMm), measure, main: money(main), surcharge: money(surcharge), min_applied: minApplied,
     extras: extras.map(money), subtotal: money(subtotal), discount: money(discount), net: money(net), tax_bps, tax: money(tax), total: money(net + tax), max_discount_bps: maxDiscount,
   };
 }
