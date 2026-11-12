@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     const privateHeaders=[{key:"Referrer-Policy",value:"no-referrer"},{key:"Cache-Control",value:"private, no-store"},{key:"X-Robots-Tag",value:"noindex, nofollow, noarchive"}];
-    return [{ source: "/:path*", headers: securityHeaders },{source:"/auth/:path*",headers:privateHeaders},{source:"/cotizacion/:path*",headers:privateHeaders}];
+    return [{ source: "/:path*", headers: securityHeaders },{source:"/auth/:path*",headers:privateHeaders},{source:"/cotizacion/:path*",headers:privateHeaders},{source:"/confirmar/:path*",headers:privateHeaders},{source:"/api/agenda/:path*",headers:privateHeaders}];
   },
 };
 

@@ -4,8 +4,9 @@ import type { Appointment, Installation } from "../src/lib/supabase/database.typ
 import { unifiedAgenda } from "../src/features/appointments/unified";
 
 const range = { from: "2026-11-01T03:00:00Z", to: "2026-12-01T03:00:00Z", now: "2026-11-02T12:00:00Z" };
-const appointment: Appointment = { id: "visit", contact_id: "contact", lead_id: null, kind: "installation", service: "Fixture", starts_at: "2026-11-03T12:00:00Z", ends_at: "2026-11-03T13:00:00Z", address: "Fixture", commune: "Fixture", technician_id: "old", status: "scheduled", notes: null, result: null, cal_booking_uid: null, created_by: null, created_at: range.now, updated_at: range.now };
-const job: Installation = { id: "job", appointment_id: "visit", quote_id: "quote", contact_id: "contact", lead_id: null, service: "Fixture", scheduled_at: "2026-11-04T12:00:00Z", completed_at: null, address: "New address", commune: "Fixture", technician_id: "new", status: "rescheduled", notes: null, technical_data: {}, approved_amount: 0, payment_status: "unpaid", created_by: "admin", created_at: range.now, updated_at: range.now };
+const ops = { building: null, unit: null, floor: null, access_notes: null, attendance_status: "pending" as const, attendance_confirmed_at: null };
+const appointment: Appointment = { ...ops, zone_kind: null, source: "admin", cal_sync_status: "none", cal_sync_error: null, cal_synced_at: null, id: "visit", contact_id: "contact", lead_id: null, kind: "installation", service: "Fixture", starts_at: "2026-11-03T12:00:00Z", ends_at: "2026-11-03T13:00:00Z", address: "Fixture", commune: "Fixture", technician_id: "old", status: "scheduled", notes: null, result: null, cal_booking_uid: null, created_by: null, created_at: range.now, updated_at: range.now };
+const job: Installation = { ...ops, duration_minutes: null, id: "job", appointment_id: "visit", quote_id: "quote", contact_id: "contact", lead_id: null, service: "Fixture", scheduled_at: "2026-11-04T12:00:00Z", completed_at: null, address: "New address", commune: "Fixture", technician_id: "new", status: "rescheduled", notes: null, technical_data: {}, approved_amount: 0, payment_status: "unpaid", created_by: "admin", created_at: range.now, updated_at: range.now };
 
 test("agenda uses installation date and technician once, with no invented duration", () => {
   const result = unifiedAgenda([appointment], [job, job], range);

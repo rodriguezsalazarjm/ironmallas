@@ -1,4 +1,5 @@
 "use client";
+import type { TaxExemption } from "./quick";
 import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Trash2, FileDown, MessageCircle, Save } from "lucide-react";
@@ -23,14 +24,17 @@ function Section({ step, title, children }: { step: string; title: string; child
   return <section className="min-w-0 rounded-2xl border border-line bg-white p-4 sm:p-6"><h2 className="mb-4 flex items-center gap-3 text-lg font-semibold text-navy-700"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-orange-500 text-sm font-bold text-navy-950">{step}</span>{title}</h2>{children}</section>;
 }
 
-export function QuickQuoteEditor({ contacts, rules, taxBps, validityDays, superadmin, services, initial, selectedContact, leadId }: {
+export function QuickQuoteEditor({ contacts, rules, taxBps, validityDays, superadmin, services, initial, selectedContact, leadId, exemptions = [], draft, appointmentId }: {
   contacts: QuickContact[]; rules: (QuickRate & { material: string | null })[]; taxBps: number | null; validityDays: number | null; superadmin: boolean; services: readonly string[];
   initial?: QuickInitial; selectedContact?: string; leadId?: string;
+  /** Tratamientos sin IVA configurados (con fundamento legal). */ exemptions?: TaxExemption[];
+  /** Prellenado desde la ficha técnica de una visita (nueva cotización). */ draft?: QuickPayload; appointmentId?: string;
 }) {
   const m2Rules = rules.filter(r => r.unit === "m2" || r.unit === "ml");
   const extraRules = rules.filter(r => r.unit !== "m2" && r.unit !== "ml");
   const pillarRules = extraRules.filter(r => /^pilar/i.test(r.name));
-  const p = initial?.payload;
+  const p = initial?.payload ?? draft;
+  const initialAppointment = initial ? initial.payload.appointment_id ?? null : appointmentId ?? null;
   const [contactMode, setContactMode] = useState<"existing" | "new">(initial || selectedContact || contacts.length ? "existing" : "new");
   const [contactId, setContactId] = useState(initial?.contactId ?? selectedContact ?? "");
   const [filter, setFilter] = useState("");
@@ -40,15 +44,18 @@ export function QuickQuoteEditor({ contacts, rules, taxBps, validityDays, supera
   const [features, setFeatures] = useState<string[]>(p?.features ?? []);
   const [workAddress, setWorkAddress] = useState(p?.work_address ?? "");
   const [zones, setZones] = useState<ZoneRow[]>(p ? p.zones.map(z => ({ key: nextKey(), kind: z.kind, description: z.description, width: mmToMeters(z.width_mm), height: mmToMeters(z.height_mm), quantity: String(z.quantity), notes: z.notes })) : [emptyZone()]);
-  const [mode, setMode] = useState<"rate" | "manual">(p?.pricing.mode ?? (m2Rules.length || !superadmin ? "rate" : "manual"));
-  const [ruleId, setRuleId] = useState(p?.pricing.mode === "rate" ? p.pricing.rule_id : m2Rules[0]?.id ?? "");
+  const [mode, setMode] = useState<"rate" | "manual" | "custom_rate">(p?.pricing.mode ?? (m2Rules.length || !superadmin ? "rate" : "manual"));
+  const [ruleId, setRuleId] = useState(p?.pricing.mode === "rate" || p?.pricing.mode === "custom_rate" ? p.pricing.rule_id : m2Rules[0]?.id ?? "");
+  const [customPrice, setCustomPrice] = useState(p?.pricing.mode === "custom_rate" ? String(p.pricing.unit_price) : "");
+  const [customReason, setCustomReason] = useState(p?.pricing.mode === "custom_rate" ? p.pricing.reason : "");
   const [manualNet, setManualNet] = useState(p?.pricing.mode === "manual" ? String(p.pricing.manual_net) : "");
   const [manualSource, setManualSource] = useState(p?.pricing.mode === "manual" ? p.pricing.manual_source : "");
   const [extras, setExtras] = useState<ExtraRow[]>(p ? p.extras.map(e => "rule_id" in e
     ? { key: nextKey(), kind: e.kind, description: e.description, mode: "rule", rule_id: e.rule_id, quantity: String(e.quantity_milli / 1000).replace(".", ","), amount: "", source: "" }
     : { key: nextKey(), kind: e.kind, description: e.description, mode: "manual", rule_id: "", quantity: "1", amount: String(e.amount), source: e.source }) : []);
   const [discount, setDiscount] = useState(p ? String(p.discount_bps / 100).replace(".", ",") : "0");
-  const [applyTax, setApplyTax] = useState(p?.apply_tax ?? true);
+  const [taxChoice, setTaxChoice] = useState(p?.apply_tax === false ? p.tax_exemption ?? "" : "");
+  const applyTax = taxChoice === "";
   const [notes, setNotes] = useState(p?.notes ?? "");
   const [definitive, setDefinitive] = useState(p?.definitive ?? false);
   const [state, action, pending] = useActionState<QuickQuoteState, FormData>(saveQuickQuote, { ok: false, message: "" });
@@ -79,20 +86,22 @@ export function QuickQuoteEditor({ contacts, rules, taxBps, validityDays, supera
     });
     const payload = {
       service, mesh_type: meshType, features, work_address: workAddress.trim(), zones: zoneValues,
-      pricing: mode === "rate" ? { mode: "rate" as const, rule_id: ruleId } : { mode: "manual" as const, manual_net: Number(manualNet.replace(/\D/g, "")), manual_source: manualSource.trim() },
-      extras: extraValues, discount_bps: discountBps, apply_tax: applyTax, notes: notes.trim(), definitive,
+      pricing: mode === "rate" ? { mode: "rate" as const, rule_id: ruleId }
+        : mode === "custom_rate" ? { mode: "custom_rate" as const, rule_id: ruleId, unit_price: Number(customPrice.replace(/\D/g, "")), reason: customReason.trim() }
+        : { mode: "manual" as const, manual_net: Number(manualNet.replace(/\D/g, "")), manual_source: manualSource.trim() },
+      extras: extraValues, discount_bps: discountBps, apply_tax: applyTax, tax_exemption: taxChoice, appointment_id: initialAppointment, notes: notes.trim(), definitive,
     } as QuickPayload;
     let result: ReturnType<typeof calculateQuick> | null = null;
     if (!errors.length && taxBps !== null) {
-      try { result = calculateQuick(payload, rules, taxBps, superadmin); }
+      try { result = calculateQuick(payload, rules, taxBps, superadmin, exemptions); }
       catch (error) {
         const message = error instanceof Error ? error.message : "Revisa los datos.";
         errors.push(message.startsWith("[") ? "Completa tarifa o valor neto, procedencia y descripciones de adicionales." : message);
       }
     }
     return { payload, result, errors };
-  }, [zones, extras, discount, service, meshType, features, workAddress, mode, ruleId, manualNet, manualSource, applyTax, notes, definitive, rules, taxBps, superadmin]);
-  const selectedRule = mode === "rate" ? m2Rules.find(rule => rule.id === ruleId) : undefined;
+  }, [zones, extras, discount, service, meshType, features, workAddress, mode, ruleId, manualNet, manualSource, customPrice, customReason, taxChoice, applyTax, initialAppointment, exemptions, notes, definitive, rules, taxBps, superadmin]);
+  const selectedRule = mode !== "manual" ? m2Rules.find(rule => rule.id === ruleId) : undefined;
   const linear = selectedRule?.unit === "ml";
 
   const contactReady = contactMode === "existing" ? Boolean(contactId) : newContact.name.trim().length >= 2 && newContact.whatsapp.replace(/\D/g, "").length >= 8;
@@ -165,10 +174,15 @@ export function QuickQuoteEditor({ contacts, rules, taxBps, validityDays, supera
       <Section step="D" title="Valor comercial">
         {taxBps === null && <p className="mb-4 rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm">Faltan las condiciones comerciales (IVA, validez, condiciones de pago y datos de la empresa). {superadmin ? <Link href="/admin/tarifario" className="font-semibold underline">Configurarlas</Link> : "Pide a un SUPERADMIN que las configure."}</p>}
         <div className="grid gap-3">
-          {superadmin && <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Origen del valor">
-            {(["rate", "manual"] as const).map(m => <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${mode === m ? "border-navy-700 bg-navy-700 text-white" : "border-line bg-white text-navy-700"}`}>{m === "rate" ? "Tarifa autorizada" : "Valor neto manual"}</button>)}
+          {superadmin && <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Origen del valor">
+            {(["rate", "custom_rate", "manual"] as const).map(m => <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${mode === m ? "border-navy-700 bg-navy-700 text-white" : "border-line bg-white text-navy-700"}`}>{m === "rate" ? "Tarifa autorizada" : m === "custom_rate" ? "Precio excepcional" : "Valor neto manual"}</button>)}
           </div>}
-          {mode === "rate" ? (m2Rules.length ? <label className={label}>Tarifa autorizada<select className={fieldClass} value={ruleId} onChange={e => setRuleId(e.target.value)}>{m2Rules.map(rule => <option key={rule.id} value={rule.id}>{rule.name} · {clp(rule.unit_price)} neto/{rule.unit === "ml" ? "metro lineal" : "m²"}{rule.min_price ? ` · mín. ${clp(rule.min_price)}` : ""}</option>)}</select>{linear && <span className="text-xs text-ink-soft">Fórmula: (ancho + alto) × {selectedRule ? clp(selectedRule.unit_price) : ""} por zona y cantidad.</span>}</label>
+          {mode === "custom_rate" && <div className="grid gap-3 rounded-xl border border-orange-200 bg-orange-50 p-3 sm:grid-cols-2">
+            <p className="text-sm sm:col-span-2">Precio por {selectedRule?.unit === "ml" ? "metro lineal" : "m²"} solo para esta cotización. <strong>No modifica la tarifa general</strong>; la versión guardada conserva ambos valores y el motivo.</p>
+            <label className={label}>Precio neto excepcional (CLP){selectedRule && <span className="text-xs text-ink-soft">Tarifa general: {clp(selectedRule.unit_price)}</span>}<input className={fieldClass} value={customPrice} onChange={e => setCustomPrice(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Ej. 5500" /></label>
+            <label className={label}>Motivo *<input className={fieldClass} value={customReason} onChange={e => setCustomReason(e.target.value)} maxLength={300} placeholder="Ej. volumen de 12 ventanas en el mismo edificio" /></label>
+          </div>}
+          {mode !== "manual" ? (m2Rules.length ? <label className={label}>{mode === "custom_rate" ? "Tarifa base (unidad y fórmula)" : "Tarifa autorizada"}<select className={fieldClass} value={ruleId} onChange={e => setRuleId(e.target.value)}>{m2Rules.map(rule => <option key={rule.id} value={rule.id}>{rule.name} · {clp(rule.unit_price)} neto/{rule.unit === "ml" ? "metro lineal" : "m²"}{rule.min_price ? ` · mín. ${clp(rule.min_price)}` : ""}</option>)}</select>{linear && <span className="text-xs text-ink-soft">Fórmula: (ancho + alto) × {mode === "custom_rate" && customPrice ? clp(Number(customPrice)) : selectedRule ? clp(selectedRule.unit_price) : ""} por zona y cantidad.</span>}</label>
             : <p className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm">No hay tarifas aprobadas. {superadmin ? <>Usa «Valor neto manual» registrando su procedencia, o <Link className="font-semibold underline" href="/admin/tarifario">carga el tarifario</Link>.</> : "Pide a un SUPERADMIN que cargue el tarifario."}</p>)
             : <div className="grid gap-3 sm:grid-cols-2">
               <label className={label}>Valor neto (CLP)<input className={fieldClass} value={manualNet} onChange={e => setManualNet(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Ej. 185000" /></label>
@@ -197,7 +211,8 @@ export function QuickQuoteEditor({ contacts, rules, taxBps, validityDays, supera
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className={label}>Descuento (%)<input className={fieldClass} value={discount} onChange={e => setDiscount(e.target.value)} inputMode="decimal" />{r && !superadmin && <span className="text-xs text-ink-soft">Máximo autorizado: {r.max_discount_bps / 100}%</span>}</label>
-            {superadmin && <label className="flex min-h-12 items-center gap-3 self-end text-sm"><input type="checkbox" className="size-5" checked={applyTax} onChange={e => setApplyTax(e.target.checked)} />Aplicar IVA ({taxBps !== null ? taxBps / 100 : "—"}%)</label>}
+            {superadmin && exemptions.length > 0 ? <label className={label}>Tratamiento tributario<select className={fieldClass} value={taxChoice} onChange={e => setTaxChoice(e.target.value)}><option value="">Operación afecta a IVA ({taxBps !== null ? taxBps / 100 : "—"}%)</option>{exemptions.map(x => <option key={x.key} value={x.key}>{x.kind === "exempt" ? "Exenta" : "No afecta"} · {x.label}</option>)}</select>{!applyTax && <span className="text-xs text-ink-soft">Fundamento: {exemptions.find(x => x.key === taxChoice)?.legal_basis}</span>}</label>
+              : <p className="self-end text-sm text-ink-soft">Operación afecta a IVA ({taxBps !== null ? taxBps / 100 : "—"}%).{superadmin && !applyTax && " La exención guardada ya no está configurada: elige un tratamiento vigente."}{superadmin && applyTax && " Las exenciones requieren fundamento configurado en Tarifario."}</p>}
           </div>
           <label className={`flex min-h-12 items-start gap-3 rounded-xl border p-3 text-sm ${definitive ? "border-green-300 bg-green-50" : "border-line"}`}><input type="checkbox" className="mt-0.5 size-5 shrink-0" checked={definitive} onChange={e => setDefinitive(e.target.checked)} /><span><strong>Cotización definitiva</strong> — marcar solo después de la evaluación técnica. Sin marcar, el PDF se emite como «Cotización referencial — sujeta a evaluación técnica».</span></label>
           <label className={label}>Observaciones para el cliente<textarea className={fieldClass} rows={3} value={notes} onChange={e => setNotes(e.target.value)} maxLength={3000} /></label>
@@ -209,7 +224,7 @@ export function QuickQuoteEditor({ contacts, rules, taxBps, validityDays, supera
       <Section step="E" title="Resumen y PDF">
         <dl className="grid gap-2 text-sm">
           <div className="flex justify-between gap-3"><dt>{linear ? "Metros lineales" : "Superficie"}</dt><dd className="font-semibold">{r ? (linear ? `${linearLabel(r.linear_mm)} m` : `${areaLabel(r.area_milli_m2)} m²`) : "—"}</dd></div>
-          <div className="flex justify-between gap-3"><dt>{mode === "rate" ? selectedRule?.name ?? "Trabajo principal" : "Valor neto acordado"}{r?.min_applied ? " · mínimo" : ""}</dt><dd>{r ? clp(r.main) : "—"}</dd></div>
+          <div className="flex justify-between gap-3"><dt>{mode !== "manual" ? `${selectedRule?.name ?? "Trabajo principal"}${mode === "custom_rate" ? " · precio excepcional" : ""}` : "Valor neto acordado"}{r?.min_applied ? " · mínimo" : ""}</dt><dd>{r ? clp(r.main) : "—"}</dd></div>
           {r && r.surcharge > 0 && <div className="flex justify-between gap-3"><dt>Recargo de tarifa</dt><dd>{clp(r.surcharge)}</dd></div>}
           {r && r.extras.length > 0 && <div className="flex justify-between gap-3"><dt>Pilares y adicionales</dt><dd>{clp(r.extras.reduce((a, b) => a + b, 0))}</dd></div>}
           {r && r.discount > 0 && <div className="flex justify-between gap-3"><dt>Descuento</dt><dd>−{clp(r.discount)}</dd></div>}

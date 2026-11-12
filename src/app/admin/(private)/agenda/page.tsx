@@ -1,47 +1,61 @@
 import Link from "next/link";
 import {requireAdmin} from "@/lib/auth";
-import {date} from "@/features/admin/data";
-import {fromSantiagoInput,santiagoInput} from "@/features/crm/time";
-import {PageHeading,Panel,primaryClass,secondaryClass,fieldClass} from "@/features/crm/ui";
-import {unifiedAgenda,agendaStatuses as appointmentStatuses} from "@/features/appointments/unified";
-import {appointmentLabels} from "@/features/appointments/schema";
-import {dashboardPeriod,type DashboardPeriod} from "@/features/dashboard/period";
-function startOfMonth(value:string){try{return fromSantiagoInput(`${value}-01T00:00`);}catch{return fromSantiagoInput(`${value}-01T01:00`);}}
+import {PageHeading,primaryClass,fieldClass} from "@/features/crm/ui";
+import {unifiedAgenda,agendaStatuses} from "@/features/appointments/unified";
+import {AGENDA_VIEWS,parseKey,rangeTitle,shift,todayKey,viewRange,type AgendaView} from "@/features/agenda/calendar";
+import {AgendaBoard} from "@/features/agenda/board";
+
+const LIMIT=2000;
 export default async function AgendaPage({searchParams}:PageProps<"/admin/agenda">){
   const {db}=await requireAdmin();const params=await searchParams;
-  const current=santiagoInput(new Date().toISOString()).slice(0,7);
-  const month=typeof params.month==="string" && /^20\d\d-(0[1-9]|1[0-2])$/.test(params.month)?params.month:current;
-  const [year,index]=month.split("-").map(Number);
-  const nextDate=new Date(Date.UTC(year,index,1)),prevDate=new Date(Date.UTC(year,index-2,1));
-  const next=nextDate.toISOString().slice(0,7),prev=prevDate.toISOString().slice(0,7);
-  let period:DashboardPeriod|undefined;let dateError=false;
-  if(params.from || params.to){try{period=dashboardPeriod(params.from,params.to);}catch{dateError=true;}}
-  const view=params.view==="calendar" && !period?"calendar":"list";
-  const kind=typeof params.kind==="string" && ["visits","visit","evaluation","installation"].includes(params.kind)?params.kind:"";
-  const upcoming=params.upcoming==="1";
-  const status=typeof params.status==="string" && Object.hasOwn(appointmentStatuses,params.status)?params.status as keyof typeof appointmentStatuses:"";
-  const from=period?.from ?? startOfMonth(month),to=period?.to ?? startOfMonth(next);
-  const appointments=await db.from("appointments").select("*",{count:"exact"}).gte("starts_at",from).lt("starts_at",to).order("starts_at").limit(1000);
-  if(appointments.error)throw new Error("No fue posible cargar la agenda.");
-  const appointmentIds=appointments.data.map(item=>item.id);
-  const [jobs,linkedJobs]=await Promise.all([
-    db.from("installations").select("*",{count:"exact"}).gte("scheduled_at",from).lt("scheduled_at",to).order("scheduled_at").limit(1000),
-    appointmentIds.length?db.from("installations").select("*").in("appointment_id",appointmentIds):Promise.resolve({data:[],error:null}),
+  const one=(v:unknown)=>typeof v==="string"?v:"";
+  const view:AgendaView=Object.hasOwn(AGENDA_VIEWS,one(params.view))?one(params.view) as AgendaView:"week";
+  const today=todayKey();
+  const date=parseKey(one(params.date))?one(params.date):today;
+  const kind=["visits","installation"].includes(one(params.kind))?one(params.kind):"";
+  const status=Object.hasOwn(agendaStatuses,one(params.status))?one(params.status):"";
+  const q=one(params.q).slice(0,80);
+  const range=viewRange(view,date);
+
+  const [appointments,jobs,profiles]=await Promise.all([
+    db.from("appointments").select("*",{count:"exact"}).gte("starts_at",range.from).lt("starts_at",range.to).order("starts_at").limit(LIMIT),
+    db.from("installations").select("*",{count:"exact"}).gte("scheduled_at",range.from).lt("scheduled_at",range.to).order("scheduled_at").limit(LIMIT),
+    db.from("profiles").select("id,full_name,active").order("full_name"),
   ]);
-  if(jobs.error||linkedJobs.error)throw new Error("No fue posible cargar las instalaciones de agenda.");
-  const entries=unifiedAgenda(appointments.data,[...jobs.data,...linkedJobs.data],{from,to,status,kind,upcoming,now:new Date().toISOString()});
-  const result={data:entries,count:entries.length};
-  const truncated=(appointments.count??0)>1000||(jobs.count??0)>1000||linkedJobs.data.length>=1000;
-  const ids=[...new Set(result.data.map(a=>a.contact_id))];
-  const [contacts,profiles]=await Promise.all([ids.length?db.from("contacts").select("id,name").in("id",ids):Promise.resolve({data:[],error:null}),db.from("profiles").select("id,full_name")]);
-  if(contacts.error || profiles.error)throw new Error("No se pudieron cargar los responsables de agenda.");
-  const link=(m:string,v=view)=>`/admin/agenda?${new URLSearchParams({month:m,view:v,status,kind,upcoming:upcoming?"1":"",from:m===month && v!=="calendar"?period?.fromDate ?? "":"",to:m===month && v!=="calendar"?period?.toDate ?? "":""})}`;
-  const firstDay=(new Date(Date.UTC(year,index-1,1)).getUTCDay()+6)%7;
-  const days=new Date(Date.UTC(year,index,0)).getUTCDate();
-  return <><PageHeading title="Agenda" description="Visitas, evaluaciones y trabajos. Las instalaciones se programan desde su ficha; sin duplicar citas vinculadas. Todos los horarios se muestran en Santiago."><Link className={primaryClass} href="/admin/agenda/nueva">Nueva cita</Link></PageHeading>
-    <form className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-white p-4"><label className="grid gap-1 text-sm">Mes<input name="month" type="month" className={fieldClass} defaultValue={month} required/></label><label className="grid gap-1 text-sm">Estado<select name="status" className={fieldClass} defaultValue={status}><option value="">Todos</option>{Object.entries(appointmentStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="grid gap-1 text-sm">Tipo<select name="kind" className={fieldClass} defaultValue={kind}><option value="">Todos</option><option value="visits">Visitas y evaluaciones</option>{Object.entries(appointmentLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="grid gap-1 text-sm">Desde (reemplaza mes)<input type="date" name="from" className={fieldClass} min="2000-01-01" max="2100-12-31" defaultValue={period?.fromDate ?? ""}/></label><label className="grid gap-1 text-sm">Hasta<input type="date" name="to" className={fieldClass} min="2000-01-01" max="2100-12-31" defaultValue={period?.toDate ?? ""}/></label><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" name="upcoming" value="1" defaultChecked={upcoming}/> Solo próximas pendientes</label><input type="hidden" name="view" value={view}/><button className={secondaryClass}>Aplicar</button><div className="flex gap-2"><Link className={secondaryClass} href={link(month,"list")}>Listado</Link><Link className={secondaryClass} href={link(month,"calendar")}>Calendario mensual</Link></div></form>{dateError && <p role="alert" className="mb-4 text-sm text-red-700">El período no es válido. Se muestra el mes seleccionado; revisa desde/hasta.</p>}
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><Link className="text-sm underline" href={link(prev)}>← Mes anterior</Link><p className="text-sm text-ink-soft">{result.count ?? 0} eventos{period?` · ${period.fromDate} a ${period.toDate}`:""}</p><Link className="text-sm underline" href={link(next)}>Mes siguiente →</Link></div>
-    {view==="calendar"?<Panel title={new Intl.DateTimeFormat("es-CL",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(Date.UTC(year,index-1,1)))}><p className="mb-3 text-sm text-ink-soft sm:hidden">Desliza el calendario horizontalmente o usa Listado para ver cada evento completo.</p><div className="overflow-x-auto"><div className="grid min-w-[42rem] grid-cols-7 gap-px overflow-hidden rounded-xl border border-line bg-line">{["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map(d=><p className="bg-navy-50 px-1 py-2 text-center text-xs font-semibold text-navy-700" key={d}>{d}</p>)}{Array.from({length:firstDay},(_,i)=><div className="min-h-24 bg-surface" key={`empty-${i}`}/>)}{Array.from({length:days},(_,i)=>{const day=`${month}-${String(i+1).padStart(2,"0")}`,items=result.data.filter(a=>santiagoInput(a.starts_at).slice(0,10)===day);return <div key={day} role="group" aria-label={day} className="min-h-24 min-w-0 bg-white p-1 sm:min-h-32 sm:p-2"><p className="mb-1 text-xs font-semibold">{i+1}</p>{items.slice(0,4).map(a=><Link key={a.id} href={a.href} title={`${contacts.data?.find(c=>c.id===a.contact_id)?.name} · ${a.service} · ${date(a.starts_at)}`} className={`mb-1 block min-h-11 truncate rounded p-1 text-[10px] sm:text-xs ${a.status==="cancelled"?"bg-surface text-ink-soft line-through":"bg-navy-50 text-navy-700"}`}>{santiagoInput(a.starts_at).slice(11)} <span className="hidden sm:inline">{contacts.data?.find(c=>c.id===a.contact_id)?.name}</span></Link>)}{items.length>4 && <p className="text-[10px]">+{items.length-4} citas</p>}</div>})}</div></div>{!result.data.length && <p className="mt-5 text-sm text-ink-soft">Sin citas este mes. Usa Nueva cita para coordinar una visita manualmente.</p>}</Panel>:<Panel title={period ? "Citas del período" : "Citas del mes"}>{!result.data.length && <p className="py-5 text-sm text-ink-soft">No hay eventos con estos filtros. Crea una visita o programa un trabajo desde Instalaciones.</p>}<div className="grid gap-3">{result.data.map(a=><Link href={a.href} className="grid gap-3 rounded-xl border border-line p-4 hover:border-navy-500 sm:grid-cols-2" key={a.id}><div><p className="text-xs font-semibold uppercase tracking-wide text-orange-700">{appointmentLabels[a.kind]}</p><h2 className="mt-1 font-semibold text-navy-700">{contacts.data?.find(c=>c.id===a.contact_id)?.name || "Contacto"}</h2><p className="mt-1 text-sm">{a.service}</p><p className="mt-1 text-xs text-ink-soft">{a.address} · {a.commune}</p></div><div className="text-sm sm:text-right"><p className="font-medium">{date(a.starts_at)}</p><p className="mt-1 text-xs">Duración: {a.ends_at ? `${Math.round((Date.parse(a.ends_at)-Date.parse(a.starts_at))/60000)} min` : "Por confirmar"}</p><p className="mt-1 text-xs text-ink-soft">{profiles.data?.find(p=>p.id===a.technician_id)?.full_name || "Técnico por asignar"}</p><span className="mt-2 inline-block rounded-full bg-navy-50 px-3 py-1 text-xs">{appointmentStatuses[a.status]}</span></div></Link>)}</div></Panel>}
-    {truncated && <p className="mt-4 text-sm">Vista limitada a 1.000 registros por fuente. Acota el período desde/hasta para consultar todos los eventos; los filtros de estado se aplican a los registros cargados.</p>}
-  </>;
+  if(appointments.error||jobs.error||profiles.error)throw new Error("No fue posible cargar la agenda.");
+  const technician=profiles.data.some(p=>p.id===one(params.technician))||one(params.technician)==="none"?one(params.technician):"";
+  const ids=appointments.data.map(a=>a.id);
+  const linked=ids.length?await db.from("installations").select("*").in("appointment_id",ids):{data:[],error:null};
+  if(linked.error)throw new Error("No fue posible cargar las instalaciones vinculadas.");
+  const contactIds=[...new Set([...appointments.data.map(a=>a.contact_id),...jobs.data.map(j=>j.contact_id)])];
+  const contacts=contactIds.length?await db.from("contacts").select("id,name,phone").in("id",contactIds):{data:[],error:null};
+  if(contacts.error)throw new Error("No se pudieron cargar los clientes de la agenda.");
+  const names=Object.fromEntries(contacts.data.map(c=>[c.id,c.name]));
+  const entries=unifiedAgenda(appointments.data,[...jobs.data,...linked.data],{from:range.from,to:range.to,status,kind,technician,q,names,now:new Date().toISOString()});
+  const truncated=(appointments.count??0)>LIMIT||(jobs.count??0)>LIMIT;
+  const base={view,date,kind,status,technician,q};
+  const href=(patch:Partial<typeof base>)=>`/admin/agenda?${new URLSearchParams(Object.entries({...base,...patch}).filter(([,v])=>v)).toString()}`;
+  const tab="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-semibold";
+  return <div className="agenda-shell">
+    <PageHeading title="Agenda" description="Visitas técnicas e instalaciones en una sola agenda (hora de Santiago). Las instalaciones se programan con su propia fecha; las citas vinculadas no se duplican.">
+      <Link className={primaryClass} href={`/admin/agenda/nueva?start=${date}T09:00`}>Nueva visita</Link>
+    </PageHeading>
+    <nav aria-label="Vistas de agenda" className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap gap-1 rounded-2xl border border-line bg-white p-1">{Object.entries(AGENDA_VIEWS).map(([key,label])=><Link key={key} aria-current={view===key?"page":undefined} href={href({view:key as AgendaView})} className={`${tab} ${view===key?"bg-navy-700 text-white":"text-navy-700 hover:bg-navy-50"} ${key==="month"||key==="year"?"max-sm:hidden":""}`}>{label}</Link>)}</div>
+      <div className="flex items-center gap-1"><Link className={`${tab} border border-line bg-white text-navy-700`} href={href({date:shift(view,date,-1)})} aria-label="Período anterior">←</Link><Link className={`${tab} border border-line bg-white text-navy-700`} href={href({date:today})}>Hoy</Link><Link className={`${tab} border border-line bg-white text-navy-700`} href={href({date:shift(view,date,1)})} aria-label="Período siguiente">→</Link></div>
+      <h2 className="font-display text-xl font-semibold capitalize text-navy-700 sm:ml-2">{rangeTitle(view,date)}</h2>
+    </nav>
+    <form className="mb-5 grid gap-3 rounded-2xl border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]" role="search">
+      <input type="hidden" name="view" value={view}/><input type="hidden" name="date" value={date}/>
+      <label className="grid gap-1 text-sm">Buscar cliente o dirección<input name="q" defaultValue={q} maxLength={80} className={fieldClass} placeholder="Nombre, calle o comuna"/></label>
+      <label className="grid gap-1 text-sm">Tipo<select name="kind" defaultValue={kind} className={fieldClass}><option value="">Todos</option><option value="visits">Visitas técnicas</option><option value="installation">Instalaciones</option></select></label>
+      <label className="grid gap-1 text-sm">Técnico<select name="technician" defaultValue={technician} className={fieldClass}><option value="">Todos</option><option value="none">Sin asignar</option>{profiles.data.filter(p=>p.active).map(p=><option key={p.id} value={p.id}>{p.full_name}</option>)}</select></label>
+      <label className="grid gap-1 text-sm">Estado<select name="status" defaultValue={status} className={fieldClass}><option value="">Todos</option>{Object.entries(agendaStatuses).map(([k,l])=><option key={k} value={k}>{l}</option>)}</select></label>
+      <div className="flex items-end gap-2"><button className={primaryClass}>Filtrar</button>{(q||kind||status||technician)&&<Link className="inline-flex min-h-11 items-center text-sm underline" href={href({q:"",kind:"",status:"",technician:""})}>Limpiar</Link>}</div>
+    </form>
+    <AgendaBoard view={view} date={date} today={today} first={range.first} last={range.last} entries={entries} names={names}
+      phones={Object.fromEntries(contacts.data.map(c=>[c.id,c.phone??""]))}
+      technicians={profiles.data.map(p=>({id:p.id,name:p.full_name,active:p.active}))}/>
+    {truncated&&<p className="mt-4 text-sm" role="status">Vista limitada a {LIMIT.toLocaleString("es-CL")} registros por fuente. Usa una vista más acotada (mes, semana o día) para ver todos los eventos.</p>}
+  </div>;
 }

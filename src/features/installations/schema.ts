@@ -15,4 +15,9 @@ export const installationScheduleSchema = installationEditSchema.extend({
   address: z.string().trim().min(3).max(240),
   commune: z.string().trim().min(2).max(60),
   notes: z.string().max(4000),
+  duration: z.union([z.coerce.number().int().min(15).max(1440), z.literal("")]).default(""),
+  building: z.string().trim().max(120).default(""),
+  unit: z.string().trim().max(40).default(""),
+  floor: z.string().trim().max(20).default(""),
+  access_notes: z.string().trim().max(1000).default(""),
 });

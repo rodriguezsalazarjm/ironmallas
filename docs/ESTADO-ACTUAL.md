@@ -1,5 +1,7 @@
 # Iron Mallas 2.0 — auditoría de estado actual
 
+> **DESACTUALIZADO (11-nov-2026):** este informe es histórico. Ya existe `.env.local`, seis migraciones están aplicadas en remoto (la sexta, `20261111173128_agenda_operations`, el 11-11-2026) y la suite tiene 66 pruebas. Para la agenda, fichas, Cal.com, correos y cotizador vigentes, ver [AGENDA-OPERATIVA.md](AGENDA-OPERATIVA.md) y [PROGRESO.md](PROGRESO.md).
+
 > Continuación vigente: Supabase/Vercel pospuestos por decisión del propietario. Avance local y verificaciones: [ENTREGA-LOCAL-SIN-SERVICIOS.md](ENTREGA-LOCAL-SIN-SERVICIOS.md). Este documento conserva el diagnóstico/plan histórico.
 
 Continuidad: este documento conserva la auditoría original. Las correcciones locales posteriores, la tercera migración preparada y el estado actualizado de OAuth se registran en [PROGRESO.md](PROGRESO.md); la activación se detalla en [ACTIVACION-FASE-2A.md](ACTIVACION-FASE-2A.md).

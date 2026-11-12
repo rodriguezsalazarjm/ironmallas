@@ -51,7 +51,7 @@ export async function saveQuickQuote(_: QuickQuoteState, form: FormData): Promis
   const settings = commercialSchema.safeParse(commercial.data?.value);
   if (!settings.success) return { ok: false, message: "Faltan las condiciones comerciales (IVA, validez, datos de la empresa y condiciones de pago). Configúralas en Mi cuenta → Tarifario." };
   let preview;
-  try { preview = calculateQuick(input.quote, rules.data, settings.data.tax_bps, superadmin); }
+  try { preview = calculateQuick(input.quote, rules.data, settings.data.tax_bps, superadmin, settings.data.tax_exemptions); }
   catch (error) { return { ok: false, message: error instanceof Error ? error.message : "No se pudo calcular la cotización." }; }
 
   // 2. Cliente: existente o nuevo (reutiliza contacto con el mismo teléfono para evitar duplicados).

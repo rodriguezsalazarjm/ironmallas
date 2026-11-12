@@ -19,6 +19,8 @@ type CalEmbedProps = {
   link: string;
   namespace: string;
   origin: string;
+  /** Booking-question prefill (Cal.com identifiers) and metadata[...] keys. Loads the calendar immediately. */
+  prefill?: Record<string, string>;
 };
 
 /**
@@ -26,9 +28,9 @@ type CalEmbedProps = {
  * site. The embed script is injected only after the visitor requests availability.
  * A bounded loading state preserves a usable fallback when the provider fails.
  */
-export function CalEmbed({ link, namespace, origin }: CalEmbedProps) {
-  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [activated, setActivated] = useState(false);
+export function CalEmbed({ link, namespace, origin, prefill }: CalEmbedProps) {
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">(prefill ? "loading" : "idle");
+  const [activated, setActivated] = useState(Boolean(prefill));
   const targetId = `cal-inline-${namespace}`;
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export function CalEmbed({ link, namespace, origin }: CalEmbedProps) {
     cal.ns[namespace]("inline", {
           elementOrSelector: `#${targetId}`,
           calLink: link,
-          config: { layout: "month_view", useSlotsViewOnSmallScreen: "true", theme: "light" },
+          config: { layout: "month_view", useSlotsViewOnSmallScreen: "true", theme: "light", ...prefill },
         });
         cal.ns[namespace]("ui", {
           theme: "light",
@@ -50,7 +52,7 @@ export function CalEmbed({ link, namespace, origin }: CalEmbedProps) {
         });
         cal.ns[namespace]("on", { action: "linkReady", callback: () => { window.clearTimeout(timer); setState("ready"); } });
     return () => window.clearTimeout(timer);
-  }, [activated, link, namespace, origin, targetId]);
+  }, [activated, link, namespace, origin, targetId, prefill]);
 
   return (
     <div>

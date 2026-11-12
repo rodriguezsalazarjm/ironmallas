@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
   const isProduction = process.env.VERCEL_ENV === "production" || process.env.SITE_INDEXABLE === "true";
   return {
     // Preview / staging deployments must never be indexed.
-    rules: isProduction ? { userAgent: "*", allow: "/", disallow: ["/admin","/cotizacion/","/auth/","/api/"] } : { userAgent: "*", disallow: "/" },
+    rules: isProduction ? { userAgent: "*", allow: "/", disallow: ["/admin","/cotizacion/","/confirmar/","/auth/","/api/"] } : { userAgent: "*", disallow: "/" },
     sitemap: new URL("/sitemap.xml", siteUrl).toString(),
   };
 }

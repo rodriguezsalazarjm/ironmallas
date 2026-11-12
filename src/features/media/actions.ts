@@ -1,17 +1,10 @@
 "use server";
 import { randomUUID } from "node:crypto";
-import sharp from "sharp";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import type { ActionState } from "@/components/admin/action-form";
-import { imageSignature, MAX_PHOTO_BYTES } from "./validation";
-async function photo(file: File) {
-  if (!file.size || file.size > MAX_PHOTO_BYTES || !["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("Usa JPG, PNG o WebP de hasta 3 MB.");
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if (!imageSignature(bytes)) throw new Error("El contenido no corresponde a una imagen permitida.");
-  return sharp(bytes,{ limitInputPixels: 40000000 }).rotate().resize({ width:2400,height:2400,fit:"inside",withoutEnlargement:true }).jpeg({quality:85}).toBuffer();
-}
+import { photo } from "./process";
 export async function uploadInstallationPhoto(_:ActionState,form:FormData):Promise<ActionState> {
   const { db, profile } = await requireAdmin();
   const parsed = z.object({ installation:z.uuid(),stage:z.enum(["before","during","after","detail","incident"]),caption:z.string().max(500) }).safeParse(Object.fromEntries(form));

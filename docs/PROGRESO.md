@@ -92,3 +92,22 @@ Runbook completo: [ACTIVACION-FASE-2A.md](ACTIVACION-FASE-2A.md). Incluye:
 **Siguiente tarea exacta:** con OAuth completado, ejecutar inventario de lectura, advisors y comparación contra los tres SQL locales, y producir el diff de activación. No aplicar migraciones todavía. Si el acceso sigue pendiente, las correcciones locales quedan probadas y listas para revisión.
 
 Se conservaron los cambios anteriores y archivos sin seguimiento, incluida la copia existente de ESTADO-ACTUAL. No hubo commits, pushes, reset/clean/checkout destructivos, despliegues, cambios DNS ni reemplazo de WordPress. Google Reviews permanece en roadmap para después del circuito comercial completo.
+
+## 11-nov-2026 — Agenda centralizada, fichas técnicas y automatizaciones (local)
+
+- Hecho en local: agenda con vistas Día, Semana, Mes, Año y Listado; ficha técnica con fotos privadas; conflictos de técnico con buffer; reserva Cal.com con campos adicionales y sincronización vía API v2; avisos y recordatorios por la cola existente con confirmación de asistencia; precio excepcional e IVA exento validado. Detalle en [AGENDA-OPERATIVA.md](AGENDA-OPERATIVA.md).
+- Migración `20261111173128_agenda_operations.sql` **aplicada en remoto** el 11-11-2026, con autorización. Pruebas remotas controladas y revertidas (detalle en AGENDA-OPERATIVA §10). El código nuevo aún no está desplegado.
+- Verificación: lint, typecheck y build aprobados; `npm test` con 62 pruebas aprobadas y 4 HTTP omitidas. QA visual local en [qa-local/](qa-local/). Cal.com y Resend **no** se probaron en real.
+- Siguiente paso: desplegar con autorización, configurar Cal.com (preguntas, webhook, API key, ICS Feed), verificar el dominio en Resend, elegir el scheduler y obtener la validación del contador para las exenciones.
+
+## 11-nov-2026 — Despliegue a producción (Vercel CLI, autorizado)
+
+- Deployment `dpl_hB7xabBgpyLJ8u1yBSQEtCcSjgt5`, servido en https://ironmallas-preview.vercel.app. Se subió el árbol local sin commit; `.vercelignore` excluye `.env*`, `.local` y `tests`.
+- Vercel también asignó el alias `ironmallas.cl`, pero su DNS sigue en Hostgator: el sitio público sigue en WordPress (nginx/Apache). No se tocaron DNS ni WordPress.
+- Verificado en producción:
+  - `/api/notifications/process` responde 401 sin credenciales o con un secreto incorrecto (POST y GET).
+  - `/confirmar/*` va con `noindex` y `no-store`.
+  - `/api/agenda/busy/*` responde "No configurado" (falta `AGENDA_ICS_TOKEN`).
+  - La ruta temporal de QA responde 404.
+- Variables aún ausentes en Vercel: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `LEADS_NOTIFY_EMAIL`, `CAL_API_KEY`, `AGENDA_ICS_TOKEN`. Mientras falten, no se envía ningún correo y no se puede reprogramar ni cancelar en Cal.com desde el admin.
+- Siguiente paso: crear la tarea en cron-job.org desactivada y hacer el "Test run" (debe responder `configured:false`); después, configurar Resend y hacer el envío controlado (CRON-NOTIFICACIONES §6).

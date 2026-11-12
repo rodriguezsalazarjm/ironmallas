@@ -37,6 +37,8 @@ export const quickPayloadSchema = z.object({
   pricing: z.discriminatedUnion("mode", [
     z.object({ mode: z.literal("rate"), rule_id: z.uuid() }),
     z.object({ mode: z.literal("manual"), manual_net: z.number().int().min(1).max(2147483647), manual_source: text(300).min(5) }),
+    /** Precio excepcional por metro lineal / m² en esta cotización (SUPERADMIN). No altera la tarifa general. */
+    z.object({ mode: z.literal("custom_rate"), rule_id: z.uuid(), unit_price: z.number().int().min(1).max(10000000), reason: text(300).min(5) }),
   ]),
   extras: z.array(extraSchema).max(20),
   discount_bps: z.number().int().min(0).max(10000),
@@ -44,7 +46,12 @@ export const quickPayloadSchema = z.object({
   notes: text(3000),
   /** true solo tras la evaluación técnica: el PDF deja de ser «referencial». */
   definitive: z.boolean().default(false),
+  /** Clave de settings.commercial.tax_exemptions; obligatoria cuando apply_tax=false. */
+  tax_exemption: text(60).default(""),
+  /** Visita técnica de origen (medidas registradas en su ficha). */
+  appointment_id: z.uuid().nullable().default(null),
 });
+export type TaxExemption = { key: string; label: string; kind: "exempt" | "not_affected"; legal_basis: string };
 export type QuickPayload = z.input<typeof quickPayloadSchema>;
 export type QuickRate = { id: string; name: string; unit: "m2" | "ml" | "unit" | "hour" | "fixed"; unit_price: number; min_price: number; surcharge_bps: number; max_discount_bps: number; active: boolean };
 export type QuickResult = {
@@ -75,10 +82,12 @@ export function metersToMm(value: string): number | null {
   return mm >= 1 && mm <= 100000 ? mm : null;
 }
 
-export function calculateQuick(payload: QuickPayload, rates: QuickRate[], taxBps: number, superadmin: boolean): QuickResult {
+export function calculateQuick(payload: QuickPayload, rates: QuickRate[], taxBps: number, superadmin: boolean, exemptions: TaxExemption[] = []): QuickResult {
   const parsed = quickPayloadSchema.parse(payload);
   if (!Number.isSafeInteger(taxBps) || taxBps < 0 || taxBps > 10000) throw new Error("IVA no configurado.");
   if (!parsed.apply_tax && !superadmin) throw new Error("Solo SUPERADMIN puede omitir el IVA.");
+  if (!parsed.apply_tax && !exemptions.some(e => e.key === parsed.tax_exemption && e.legal_basis.trim().length >= 10))
+    throw new Error("Una operación exenta o no afecta requiere una justificación tributaria configurada. Ser empresa o pedir factura no basta.");
   let areaMm2 = BigInt(0), linearMm = BigInt(0);
   const zones = parsed.zones.map(z => {
     const product = BigInt(z.width_mm) * BigInt(z.height_mm) * BigInt(z.quantity);
@@ -87,12 +96,14 @@ export function calculateQuick(payload: QuickPayload, rates: QuickRate[], taxBps
     return { area_milli_m2: Number(roundHalfUp(product, BigInt(1000))), linear_mm: Number(linear) };
   });
   let main: bigint, surcharge = BigInt(0), maxDiscount = 10000, minApplied = false, measure: QuickResult["measure"] = "manual";
-  if (parsed.pricing.mode === "rate") {
+  if (parsed.pricing.mode === "rate" || parsed.pricing.mode === "custom_rate") {
+    if (parsed.pricing.mode === "custom_rate" && !superadmin) throw new Error("Solo SUPERADMIN puede aplicar un precio excepcional.");
     const ruleId = parsed.pricing.rule_id;
     const rule = rates.find(r => r.id === ruleId && r.active);
     if (!rule || (rule.unit !== "m2" && rule.unit !== "ml")) throw new Error("Selecciona una tarifa autorizada.");
     measure = rule.unit;
-    const raw = rule.unit === "ml" ? roundHalfUp(BigInt(rule.unit_price) * linearMm, BigInt(1000)) : roundHalfUp(BigInt(rule.unit_price) * areaMm2, BigInt(1000000));
+    const price = BigInt(parsed.pricing.mode === "custom_rate" ? parsed.pricing.unit_price : rule.unit_price);
+    const raw = rule.unit === "ml" ? roundHalfUp(price * linearMm, BigInt(1000)) : roundHalfUp(price * areaMm2, BigInt(1000000));
     minApplied = raw < BigInt(rule.min_price);
     main = minApplied ? BigInt(rule.min_price) : raw;
     surcharge = roundHalfUp(main * BigInt(rule.surcharge_bps), BigInt(10000));

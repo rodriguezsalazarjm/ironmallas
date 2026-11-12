@@ -142,6 +142,7 @@ test("Cal webhook RPC is idempotent, handles email-only attendees and reschedule
   assert.equal((await db.query<{consent:boolean}>("select consent from public.contacts where email='intake@example.invalid'")).rows[0].consent,true);
   await asUser(db,ADMIN);
   assert.equal((await db.query("select * from public.lead_activities where lead_id=$1 and type='created'",[leadId])).rows.length,1);
-  assert.equal((await db.query("select * from public.notifications where kind='lead_created'")).rows.length,2);
+  // La reserva Cal.com crea su oportunidad, pero su alerta queda cubierta por el aviso de agenda (sin correo duplicado).
+  assert.equal((await db.query("select * from public.notifications where kind='lead_created' and status='pending'")).rows.length,2);
  } finally {await db.close();}
 });

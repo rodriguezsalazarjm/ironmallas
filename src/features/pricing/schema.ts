@@ -6,6 +6,8 @@ export const companySchema = z.object({
 export const commercialSchema = z.object({
   company:companySchema,tax_bps:z.number().int().min(0).max(10000),validity_days:z.number().int().min(1).max(365),
   payment_terms:z.string().trim().min(1).max(3000),warranty:z.string().trim().max(3000),
+  /** Tratamientos sin IVA permitidos, con fundamento legal validado por el contador. Vacío = solo operaciones afectas. */
+  tax_exemptions:z.array(z.object({key:z.string().trim().regex(/^[a-z0-9_-]{2,60}$/),label:z.string().trim().min(3).max(120),kind:z.enum(["exempt","not_affected"]),legal_basis:z.string().trim().min(10).max(500)})).max(20).default([]),
 });
 export type Commercial = z.infer<typeof commercialSchema>;
 export const pricingSchema = z.object({

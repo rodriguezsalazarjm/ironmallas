@@ -1,5 +1,7 @@
 # CRM y agenda — operación diaria
 
+> La agenda centralizada (vistas, fichas técnicas, conflictos, Cal.com y avisos) se documenta en [AGENDA-OPERATIVA.md](AGENDA-OPERATIVA.md); las secciones de agenda de este archivo pueden estar desactualizadas.
+
 ## Clientes y contactos
 
 - En **Clientes**, usa **Nuevo contacto** para registrar nombre, correo y teléfono. El correo y teléfono se normalizan para buscar coincidencias.

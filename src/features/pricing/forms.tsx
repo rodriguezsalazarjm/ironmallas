@@ -1,7 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import { company } from "@/content/company";
-import { saveCommercial,savePricing } from "./actions";
+import { saveCommercial,savePricing,saveTaxExemptions } from "./actions";
 import type { Commercial } from "./schema";
 import type { PricingRule,Service } from "@/lib/supabase/database.types";
 const input="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-ink focus:outline-2 focus:outline-navy-700";
@@ -35,5 +35,22 @@ export function CommercialForm({value}:{value?:Commercial}){
     <label className="grid gap-1 sm:col-span-2">Condiciones de pago<textarea className={input} name="paymentTerms" defaultValue={value?.payment_terms} required maxLength={3000} rows={3}/></label>
     <label className="grid gap-1 sm:col-span-2">Garantía aprobada por la empresa (opcional)<textarea className={input} name="warranty" defaultValue={value?.warranty} maxLength={3000} rows={3}/></label>
     <p role="status" className="text-sm sm:col-span-2">{state.message}</p><button className={button} disabled={pending}>{pending?"Guardando…":"Guardar condiciones"}</button>
+  </form>;
+}
+
+/** Tratamientos sin IVA. Solo se usan con fundamento legal validado por el contador; nunca por ser empresa o pedir factura. */
+export function TaxExemptionsForm({value}:{value:Commercial["tax_exemptions"]}){
+  const [state,action,pending]=useActionState(saveTaxExemptions,{message:""});
+  const rows=[...value,...Array.from({length:Math.max(0,5-value.length)},()=>({key:"",label:"",kind:"exempt" as const,legal_basis:""}))].slice(0,5);
+  return <form action={action} className="grid gap-4 rounded-2xl border border-line bg-white p-5">
+    <p className="text-sm text-ink-soft">Por defecto toda cotización es <strong>afecta a IVA</strong>. Registra aquí solo operaciones exentas o no afectas con su fundamento (artículo de la Ley sobre Impuesto a las Ventas y Servicios, resolución o instrucción del SII) validado por el contador. Deja en blanco las filas que no uses.</p>
+    {rows.map((r,i)=><fieldset key={i} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-[10rem_1fr_10rem]"><legend className="px-1 text-xs text-ink-soft">Tratamiento {i+1}</legend>
+      <label className="grid gap-1 text-sm">Clave<input className={input} name={`key_${i}`} defaultValue={r.key} pattern="[a-z0-9_-]{2,60}" placeholder="exenta_art12"/></label>
+      <label className="grid gap-1 text-sm">Nombre visible<input className={input} name={`label_${i}`} defaultValue={r.label} maxLength={120}/></label>
+      <label className="grid gap-1 text-sm">Tipo<select className={input} name={`kind_${i}`} defaultValue={r.kind}><option value="exempt">Exenta</option><option value="not_affected">No afecta</option></select></label>
+      <label className="grid gap-1 text-sm sm:col-span-3">Fundamento legal<textarea className={input} name={`basis_${i}`} defaultValue={r.legal_basis} maxLength={500} rows={2}/></label>
+    </fieldset>)}
+    <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="accountant" className="mt-1 size-5"/>Confirmo que cada fundamento fue revisado y aprobado por el contador de Iron Mallas.</label>
+    <p role="status" className="text-sm">{state.message}</p><button className={button} disabled={pending}>{pending?"Guardando…":"Guardar tratamientos tributarios"}</button>
   </form>;
 }

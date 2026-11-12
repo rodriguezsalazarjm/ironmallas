@@ -2,7 +2,7 @@ import { CalendarCheck, CircleCheck, Info } from "lucide-react";
 
 import type { ScheduleContent } from "@/content/types";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { CalEmbed } from "./cal-embed";
+import { BookingFlow } from "./booking-flow";
 
 export function Schedule({ schedule }: { schedule: ScheduleContent }) {
   return (
@@ -34,13 +34,13 @@ export function Schedule({ schedule }: { schedule: ScheduleContent }) {
         <div className="overflow-hidden rounded-3xl border border-line bg-white shadow-card">
           <div className="flex items-center justify-between gap-4 border-b border-line bg-navy-700 px-6 py-5 text-white">
             <div>
-              <h3 className="text-xl font-semibold uppercase tracking-wide">Selecciona una fecha</h3>
-              <p className="mt-0.5 text-sm text-navy-100">Elige el horario que más te acomode para coordinar tu visita.</p>
+              <h3 className="text-xl font-semibold uppercase tracking-wide">Agenda tu visita técnica</h3>
+              <p className="mt-0.5 text-sm text-navy-100">Ingresa los datos del lugar y luego elige un horario disponible.</p>
             </div>
             <CalendarCheck className="size-8 shrink-0 text-orange-400" aria-hidden="true" />
           </div>
           <div className="p-3 sm:p-5">
-            <CalEmbed link={schedule.cal.link} namespace={schedule.cal.namespace} origin={schedule.cal.origin} />
+            <BookingFlow link={schedule.cal.link} namespace={schedule.cal.namespace} origin={schedule.cal.origin} />
           </div>
         </div>
       </div>
