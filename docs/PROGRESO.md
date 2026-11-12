@@ -111,3 +111,29 @@ Se conservaron los cambios anteriores y archivos sin seguimiento, incluida la co
   - La ruta temporal de QA responde 404.
 - Variables aún ausentes en Vercel: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `LEADS_NOTIFY_EMAIL`, `CAL_API_KEY`, `AGENDA_ICS_TOKEN`. Mientras falten, no se envía ningún correo y no se puede reprogramar ni cancelar en Cal.com desde el admin.
 - Siguiente paso: crear la tarea en cron-job.org desactivada y hacer el "Test run" (debe responder `configured:false`); después, configurar Resend y hacer el envío controlado (CRON-NOTIFICACIONES §6).
+
+## 11-nov-2026 — Cierre autónomo y pendientes del propietario
+
+**Hecho:**
+- `AGENDA_ICS_TOKEN` generado (48 caracteres), guardado en Vercel (Production) y en `.env.local`. Producción redesplegada.
+- `/api/agenda/busy/<token>` devuelve un ICS válido; un token incorrecto da 404.
+- Webhook `/api/webhooks/cal` probado de punta a punta en producción con un evento **firmado** de cancelación de una UID inexistente (`qa-signature-check-20261111`):
+  - Respondió 200 y se registró en `webhook_events`, procesado.
+  - Confirma que el `CAL_WEBHOOK_SECRET` de producción coincide con el local y que la RPC migrada funciona.
+  - No se crearon citas, contactos ni avisos. La fila de `webhook_events` se conserva como evidencia.
+- Firma inválida → 401.
+- Commit `57ef79e` en `feat/ironmallas-complete`, con push. `main` no se tocó.
+
+**Solo el propietario puede hacerlo** (requiere sus cuentas o el DNS):
+1. **Resend:** crear la API key y verificar el dominio. Esto requiere registros DNS en Hostgator, que yo no toco. Después cargar en Vercel `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (por ejemplo `avisos@ironmallas.cl`) y `LEADS_NOTIFY_EMAIL`, y redesplegar.
+2. **Notificaciones:** en `/admin/notificaciones`, como SUPERADMIN, fijar el destinatario y habilitar la opción. Activar "Agenda" solo después de la prueba controlada.
+3. **cron-job.org:** crear la cuenta y la tarea desactivada según [CRON-NOTIFICACIONES.md](CRON-NOTIFICACIONES.md) §5. El `CRON_SECRET` está en `.env.local` y es el mismo de Vercel.
+4. **Cal.com**, en el tipo de evento de visita:
+   - Crear las preguntas de reserva `direccion`, `comuna`, `tipo_zona`, `whatsapp`, `detalle` y `consentimiento`.
+   - Crear el webhook `https://ironmallas-preview.vercel.app/api/webhooks/cal` (eventos created, rescheduled y cancelled) con el `CAL_WEBHOOK_SECRET` de `.env.local`.
+   - En la app ICS Feed, usar la URL `https://ironmallas-preview.vercel.app/api/agenda/busy/<AGENDA_ICS_TOKEN de .env.local>`.
+   - Desactivar los workflows de recordatorio propios de Cal.com.
+   - Crear una API key v2 y cargarla en Vercel como `CAL_API_KEY`, luego redesplegar.
+5. **Contador:** validar las exenciones de IVA antes de cargarlas en Tarifario.
+6. **Supabase Auth (recomendado):** activar "Leaked password protection" (advisor de seguridad pendiente).
+7. **Revisar y fusionar** `feat/ironmallas-complete` en `main` cuando lo apruebes.
