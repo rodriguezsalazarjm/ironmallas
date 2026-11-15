@@ -137,3 +137,19 @@ Se conservaron los cambios anteriores y archivos sin seguimiento, incluida la co
 5. **Contador:** validar las exenciones de IVA antes de cargarlas en Tarifario.
 6. **Supabase Auth (recomendado):** activar "Leaked password protection" (advisor de seguridad pendiente).
 7. **Revisar y fusionar** `feat/ironmallas-complete` en `main` cuando lo apruebes.
+
+## 15-nov-2026 — Dominio ironmallas.cl → Vercel (en curso)
+
+- **La delegación todavía no cambió.** NIC Chile (`a.nic.cl`), Google DNS y Cloudflare siguen respondiendo `ns00006/ns00007.hostgator.cl`, y el dominio sigue apuntando a WordPress (69.6.225.73). En Vercel: *Intended* `ns1/ns2.vercel-dns.com`, *Current* Hostgator ☓.
+- **Zona en Vercel DNS, lista para cuando cambie** (verificada consultando directamente `ns1.vercel-dns.com`):
+  - Apex y `www` apuntan a Vercel (ALIAS por defecto).
+  - Resend (agregado por el propietario): `resend._domainkey` TXT, `send` CNAME `send.forge.rmta.net`, `rsend` CNAME `rsend-sae1.forge.rmta.net`, `_dmarc` `v=DMARC1; p=none;`.
+  - Correo Titan, **copiado desde Hostgator** para que el correo @ironmallas.cl no se corte al cambiar los NS: MX 10 `mx1.titan.email`, MX 20 `mx2.titan.email`, TXT `v=spf1 include:spf.titan.email ~all`, `titan1._domainkey` (DKIM) y `webmail` CNAME `titan.hostgator.cl`.
+  - No se copiaron `cpanel`, `ftp`, `mail`, `autodiscover` ni `default._domainkey`, que son del hosting de WordPress en Hostgator.
+- **Cuando NIC Chile muestre los NS de Vercel:**
+  1. Esperar a que Vercel marque el dominio como válido y emita el certificado (es automático).
+  2. Cambiar en Vercel `NEXT_PUBLIC_SITE_URL` y `AUTH_SITE_URL` a `https://ironmallas.cl` y redesplegar.
+  3. En Supabase Auth, cambiar Site URL y Redirect URLs a `https://ironmallas.cl/**`.
+  4. En Cal.com, cambiar las URLs del webhook y del ICS Feed a `ironmallas.cl`.
+  5. En cron-job.org, cambiar el dominio de la URL.
+  6. Verificar el dominio en Resend y cargar `RESEND_FROM_EMAIL` con un remitente @ironmallas.cl.
