@@ -1,10 +1,13 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { supabaseConfig } from "./supabase/config";
 import { createSupabaseServer } from "./supabase/server";
 
 export const requireAdmin = cache(async () => {
+  // Admin pages are per-request: stops prefetch prerenders here instead of erroring on Date.now() downstream.
+  await connection();
   if (!supabaseConfig()) redirect("/admin/login");
   const db = await createSupabaseServer();
   const { data: { user }, error } = await db.auth.getUser();
