@@ -125,31 +125,40 @@ Se conservaron los cambios anteriores y archivos sin seguimiento, incluida la co
 - Commit `57ef79e` en `feat/ironmallas-complete`, con push. `main` no se tocó.
 
 **Solo el propietario puede hacerlo** (requiere sus cuentas o el DNS):
-1. **Resend:** crear la API key y verificar el dominio. Esto requiere registros DNS en Hostgator, que yo no toco. Después cargar en Vercel `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (por ejemplo `avisos@ironmallas.cl`) y `LEADS_NOTIFY_EMAIL`, y redesplegar.
+1. **Resend:** crear la API key y verificar el dominio. Los registros DNS ya están en Vercel; falta pulsar *Verify*. Después cargar en Vercel `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (por ejemplo `avisos@ironmallas.cl`) y `LEADS_NOTIFY_EMAIL`, y redesplegar.
 2. **Notificaciones:** en `/admin/notificaciones`, como SUPERADMIN, fijar el destinatario y habilitar la opción. Activar "Agenda" solo después de la prueba controlada.
 3. **cron-job.org:** crear la cuenta y la tarea desactivada según [CRON-NOTIFICACIONES.md](CRON-NOTIFICACIONES.md) §5. El `CRON_SECRET` está en `.env.local` y es el mismo de Vercel.
 4. **Cal.com**, en el tipo de evento de visita:
    - Crear las preguntas de reserva `direccion`, `comuna`, `tipo_zona`, `whatsapp`, `detalle` y `consentimiento`.
-   - Crear el webhook `https://ironmallas-preview.vercel.app/api/webhooks/cal` (eventos created, rescheduled y cancelled) con el `CAL_WEBHOOK_SECRET` de `.env.local`.
-   - En la app ICS Feed, usar la URL `https://ironmallas-preview.vercel.app/api/agenda/busy/<AGENDA_ICS_TOKEN de .env.local>`.
+   - Crear el webhook `https://ironmallas.cl/api/webhooks/cal` (eventos created, rescheduled y cancelled) con el `CAL_WEBHOOK_SECRET` de `.env.local`.
+   - En la app ICS Feed, usar la URL `https://ironmallas.cl/api/agenda/busy/<AGENDA_ICS_TOKEN de .env.local>`.
    - Desactivar los workflows de recordatorio propios de Cal.com.
    - Crear una API key v2 y cargarla en Vercel como `CAL_API_KEY`, luego redesplegar.
 5. **Contador:** validar las exenciones de IVA antes de cargarlas en Tarifario.
 6. **Supabase Auth (recomendado):** activar "Leaked password protection" (advisor de seguridad pendiente).
 7. **Revisar y fusionar** `feat/ironmallas-complete` en `main` cuando lo apruebes.
 
-## 15-nov-2026 — Dominio ironmallas.cl → Vercel (en curso)
+## 15-nov-2026 — Dominio ironmallas.cl en producción (Vercel)
 
-- **La delegación todavía no cambió.** NIC Chile (`a.nic.cl`), Google DNS y Cloudflare siguen respondiendo `ns00006/ns00007.hostgator.cl`, y el dominio sigue apuntando a WordPress (69.6.225.73). En Vercel: *Intended* `ns1/ns2.vercel-dns.com`, *Current* Hostgator ☓.
-- **Zona en Vercel DNS, lista para cuando cambie** (verificada consultando directamente `ns1.vercel-dns.com`):
-  - Apex y `www` apuntan a Vercel (ALIAS por defecto).
-  - Resend (agregado por el propietario): `resend._domainkey` TXT, `send` CNAME `send.forge.rmta.net`, `rsend` CNAME `rsend-sae1.forge.rmta.net`, `_dmarc` `v=DMARC1; p=none;`.
-  - Correo Titan, **copiado desde Hostgator** para que el correo @ironmallas.cl no se corte al cambiar los NS: MX 10 `mx1.titan.email`, MX 20 `mx2.titan.email`, TXT `v=spf1 include:spf.titan.email ~all`, `titan1._domainkey` (DKIM) y `webmail` CNAME `titan.hostgator.cl`.
-  - No se copiaron `cpanel`, `ftp`, `mail`, `autodiscover` ni `default._domainkey`, que son del hosting de WordPress en Hostgator.
-- **Cuando NIC Chile muestre los NS de Vercel:**
-  1. Esperar a que Vercel marque el dominio como válido y emita el certificado (es automático).
-  2. Cambiar en Vercel `NEXT_PUBLIC_SITE_URL` y `AUTH_SITE_URL` a `https://ironmallas.cl` y redesplegar.
-  3. En Supabase Auth, cambiar Site URL y Redirect URLs a `https://ironmallas.cl/**`.
-  4. En Cal.com, cambiar las URLs del webhook y del ICS Feed a `ironmallas.cl`.
-  5. En cron-job.org, cambiar el dominio de la URL.
-  6. Verificar el dominio en Resend y cargar `RESEND_FROM_EMAIL` con un remitente @ironmallas.cl.
+- **La web y el panel ya están en el dominio final.** NS `ns1/ns2.vercel-dns.com` (verificado). Certificado emitido para `ironmallas.cl` y `www`. `www` y `http` redirigen con 308 a `https://ironmallas.cl`. Hostgator queda **solo para el correo Titan** (contacto@ironmallas.cl).
+- En Vercel, `NEXT_PUBLIC_SITE_URL` y `AUTH_SITE_URL` ahora son `https://ironmallas.cl`. Redesplegado.
+- **Verificado en el dominio:**
+  - `/` responde 200. Canonical y `og:url` apuntan a `https://ironmallas.cl`.
+  - `robots.txt` y `sitemap.xml` usan el dominio final.
+  - `/admin` → `/admin/login`; la pantalla de acceso carga en el navegador.
+  - `/api/notifications/process` → 401 sin secreto o con secreto incorrecto. `/api/webhooks/cal` sin firma → 401.
+- **Bloqueo resuelto: Attack Challenge Mode estaba activo en el proyecto.**
+  - Todo `ironmallas.cl` respondía `403 x-vercel-mitigated: challenge` a clientes que no son navegador (cron-job.org, Cal.com, ICS).
+  - Se desactivó por API (`POST /v1/security/attack-mode`, `attackModeEnabled:false`).
+  - Además se creó la regla de firewall "Bypass machine endpoints" para `/api/notifications/process`, `/api/webhooks/*` y `/api/agenda/busy/*`; estas rutas ya se protegen con su propio secreto.
+  - **No reactivar Attack Challenge Mode** salvo durante un ataque real: bloquea el cron y los webhooks.
+- **Zona DNS en Vercel:**
+  - Apex y `www` apuntan a Vercel.
+  - Resend: `resend._domainkey`, `send`, `rsend` y `_dmarc`.
+  - Titan, copiado desde Hostgator: MX 10/20 `mx1/mx2.titan.email`, SPF `include:spf.titan.email`, DKIM `titan1._domainkey` y `webmail` CNAME. Los MX se verificaron en Google DNS.
+- **Pendiente del propietario** (en lugar de las URLs `ironmallas-preview` de la lista anterior):
+  1. **Supabase Auth → URL Configuration:** Site URL `https://ironmallas.cl` y Redirect URL `https://ironmallas.cl/**`. Sin esto, los enlaces de invitación y recuperación siguen apuntando al dominio viejo.
+  2. **Resend:** pulsar *Verify* en el dominio, crear la API key y cargar en Vercel `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (ej. `avisos@ironmallas.cl`) y `LEADS_NOTIFY_EMAIL` (ej. `contacto@ironmallas.cl`). Redesplegar.
+  3. **Cal.com:** webhook `https://ironmallas.cl/api/webhooks/cal` e ICS Feed `https://ironmallas.cl/api/agenda/busy/<AGENDA_ICS_TOKEN>`.
+  4. **cron-job.org:** URL `https://ironmallas.cl/api/notifications/process`.
+  5. **Hostgator:** dar de baja el hosting de WordPress **sin** cancelar el correo Titan ni el dominio.

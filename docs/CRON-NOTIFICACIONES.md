@@ -8,7 +8,7 @@ Fecha: 11-11-2026. Decisión del propietario: usar cron-job.org cada 15 minutos 
 
 | | |
 |---|---|
-| URL | `https://ironmallas-preview.vercel.app/api/notifications/process` (cuando `ironmallas.cl` apunte a Vercel, cambiar solo el dominio) |
+| URL | `https://ironmallas.cl/api/notifications/process` (dominio final desde el 15-11-2026) |
 | Método | **POST** (recomendado). GET también funciona, con la misma autenticación. |
 | Encabezado obligatorio | `Authorization: Bearer <CRON_SECRET>` |
 | Cuerpo | Ninguno |
@@ -39,12 +39,13 @@ Con todo eso deshabilitado la llamada es inocua: responde `configured:false`.
 
 ## 4. Protección de Vercel (comprobado el 11-11-2026)
 
-- `POST https://ironmallas-preview.vercel.app/api/notifications/process` sin encabezado respondió `401 {"error":"No autorizado"}`. Ese mensaje lo devuelve **nuestro** handler, así que Vercel Authentication **no** bloquea ese dominio. Además confirma que `CRON_SECRET` ya está configurado en Vercel; si faltara, la respuesta sería 503.
+- `POST https://ironmallas.cl/api/notifications/process` sin encabezado respondió `401 {"error":"No autorizado"}`. Ese mensaje lo devuelve **nuestro** handler, así que Vercel Authentication **no** bloquea ese dominio. Además confirma que `CRON_SECRET` ya está configurado en Vercel; si faltara, la respuesta sería 503.
 - Las URLs de deployments de preview (`*-git-*.vercel.app` o con hash) sí suelen estar protegidas por Vercel Authentication. **Usa siempre el dominio de producción.**
 - Si en el futuro se activa la protección en producción, la solución segura es **Protection Bypass for Automation** (Project → Settings → Deployment Protection):
   - Genera un secreto propio que se envía en el **encabezado** `x-vercel-protection-bypass: <secreto>`, nunca como parámetro de la URL.
   - Agrégalo como segundo encabezado en cron-job.org. El `Authorization` sigue siendo obligatorio.
-- Si se activa el Firewall o el Attack Challenge Mode, cron-job.org (que no es un navegador) quedaría bloqueado. En ese caso, agrega una regla de bypass solo para la ruta `/api/notifications/process` con método POST.
+- **15-11-2026:** Attack Challenge Mode estaba activo y devolvía `403 x-vercel-mitigated: challenge` en `ironmallas.cl`. Se desactivó y se creó la regla de firewall "Bypass machine endpoints" (`/api/notifications/process`, `/api/webhooks/*`, `/api/agenda/busy/*`). Con eso `ironmallas.cl/api/notifications/process` responde 401 sin secreto.
+- Si se vuelve a activar el Attack Challenge Mode, cron-job.org (que no es un navegador) quedaría bloqueado. En ese caso, agrega una regla de bypass solo para la ruta `/api/notifications/process` con método POST.
 
 ## 5. Crear la tarea en cron-job.org (dejarla DESACTIVADA)
 
@@ -52,7 +53,7 @@ Con todo eso deshabilitado la llamada es inocua: responde `configured:false`.
 2. **Dashboard → Create cronjob**.
 3. Pestaña **Common**:
    - **Title:** `Iron Mallas · procesar avisos`
-   - **URL:** `https://ironmallas-preview.vercel.app/api/notifications/process`
+   - **URL:** `https://ironmallas.cl/api/notifications/process`
    - **Enable job:** **apagado**, hasta terminar §6.
    - **Execution schedule:** *Every 15 minutes*. En modo personalizado: minutos `0,15,30,45`, todas las horas, días y meses.
    - **Time zone:** `America/Santiago`. Es solo para el historial; el envío no depende de esto.
@@ -75,7 +76,7 @@ Con todo eso deshabilitado la llamada es inocua: responde `configured:false`.
 ## 6. Pruebas antes de activar (en orden, sin correos reales hasta el paso 5)
 
 1. **Desplegar** el código actual. ✅ Hecho el 11-11-2026.
-2. **Sin credenciales:** `curl -i -X POST https://ironmallas-preview.vercel.app/api/notifications/process` → `401`. Ya verificado.
+2. **Sin credenciales:** `curl -i -X POST https://ironmallas.cl/api/notifications/process` → `401`. Ya verificado.
 3. **Secreto incorrecto:** el mismo comando con `-H "Authorization: Bearer incorrecto"` → `401`. ✅ Verificado tras el despliegue, también por GET.
 4. **Secreto correcto, con las notificaciones aún deshabilitadas** (hoy no existe `settings.notifications`): **Test run** desde cron-job.org (botón "Test run" o "Execute now") → `200 {"configured":false,...}`. Esto prueba la red, Vercel y la autenticación sin enviar nada.
 5. **Envío controlado** (requiere autorización explícita):
