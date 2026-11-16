@@ -1,5 +1,5 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { login, recordActivity, saveStatus } from "@/features/admin/actions";
 import type { LeadStatus, Lead } from "@/lib/supabase/database.types";
 import {santiagoInput} from "@/features/crm/time";
@@ -9,9 +9,12 @@ const button = "rounded-xl bg-navy-700 px-5 py-3 font-semibold text-white disabl
 function Feedback({ message }: { message: string }) { return <p role="status" className="text-sm text-navy-700">{message}</p>; }
 export function LoginForm({ disabled }: { disabled: boolean }) {
   const [message, action, pending] = useActionState(login, "");
+  const [showPassword, setShowPassword] = useState(false);
   return <form action={action} className="grid gap-5">
     <label className="grid gap-2">Correo<input className={input} type="email" name="email" autoComplete="username" required maxLength={120} disabled={disabled} /></label>
-    <label className="grid gap-2">Contraseña<input className={input} type="password" name="password" autoComplete="current-password" required maxLength={256} disabled={disabled} /></label>
+    <div className="grid gap-2"><label htmlFor="login-password">Contraseña</label>
+      <div className="relative"><input id="login-password" className={`${input} pr-24`} type={showPassword ? "text" : "password"} name="password" autoComplete="current-password" required maxLength={256} disabled={disabled} />
+        <button type="button" onClick={() => setShowPassword(v => !v)} aria-controls="login-password" aria-pressed={showPassword} disabled={disabled} className="absolute inset-y-1 right-1 rounded-lg px-3 text-sm font-semibold text-navy-700 hover:bg-navy-700/10 focus:outline-2 focus:outline-navy-700 disabled:opacity-50">{showPassword ? "Ocultar" : "Mostrar"}</button></div></div>
     <Feedback message={message} /><button className={button} disabled={disabled || pending}>{pending ? "Ingresando…" : "Ingresar"}</button>
   </form>;
 }
